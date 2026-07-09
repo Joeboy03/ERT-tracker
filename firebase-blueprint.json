@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and settings.",
+      "type": "object",
+      "properties": {
+        "categories": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "User's custom categories."
+        },
+        "dailyGoal": {
+          "type": "number",
+          "description": "Daily goal in hours."
+        },
+        "baseRate": {
+          "type": "number",
+          "description": "Base hourly rate."
+        },
+        "premiumRate": {
+          "type": "number",
+          "description": "Premium hourly rate."
+        },
+        "showEarnings": {
+          "type": "boolean",
+          "description": "Whether to show earnings."
+        }
+      }
+    },
+    "DailyLog": {
+      "title": "DailyLog",
+      "description": "Tasks logged for a specific date.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "ID of the user who owns this log."
+        },
+        "dateKey": {
+          "type": "string",
+          "description": "The date string (YYYY-MM-DD)."
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "ert": { "type": "number" },
+              "timestamp": { "type": "number" },
+              "category": { "type": "string" }
+            },
+            "required": ["id", "ert", "timestamp"]
+          },
+          "description": "List of tasks for this date."
+        }
+      },
+      "required": ["userId", "dateKey", "tasks"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Collection of user profiles containing their settings."
+    },
+    "/users/{userId}/logs/{dateKey}": {
+      "schema": { "$ref": "#/entities/DailyLog" },
+      "description": "Collection of daily logs within a user profile."
+    }
+  }
+}
