@@ -6,9 +6,6 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Play,
-  Pause,
-  Timer,
   Plus, 
   Trash2, 
   Copy, 
@@ -156,67 +153,6 @@ export default function App() {
     return formatDateToKey(d);
   });
   
-  // Timer State
-  const [timerInput, setTimerInput] = useState('3');
-  const [timerRemaining, setTimerRemaining] = useState<number | null>(null);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  useEffect(() => {
-    if (isTimerRunning && timerRemaining !== null && timerRemaining > 0) {
-      timerRef.current = setInterval(() => {
-        setTimerRemaining(prev => (prev !== null && prev > 0) ? prev - 1 : 0);
-      }, 1000);
-    } else if (timerRemaining === 0 && isTimerRunning) {
-      setIsTimerRunning(false);
-      const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3');
-      audio.play().catch(console.error);
-      if (window.Notification && Notification.permission === 'granted') {
-        new Notification('Time is up!', { body: 'Your task timer has finished.' });
-      }
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isTimerRunning, timerRemaining]);
-
-  const toggleTimer = () => {
-    if (isTimerRunning) {
-      setIsTimerRunning(false);
-    } else {
-      if (timerRemaining === null || timerRemaining === 0) {
-        let mins = 3;
-        const hMatch = timerInput.toLowerCase().match(/(\d+(?:\.\d+)?)h/);
-        const mMatch = timerInput.toLowerCase().match(/(\d+(?:\.\d+)?)m/);
-        
-        if (hMatch || mMatch) {
-          const h = hMatch ? parseFloat(hMatch[1]) : 0;
-          const m = mMatch ? parseFloat(mMatch[1]) : 0;
-          mins = h * 60 + m;
-        } else {
-          mins = parseFloat(timerInput) || 3;
-        }
-        setTimerRemaining(Math.floor(mins * 60));
-        if (window.Notification && Notification.permission === 'default') {
-          Notification.requestPermission();
-        }
-      }
-      setIsTimerRunning(true);
-    }
-  };
-
-  const resetTimer = () => {
-    setIsTimerRunning(false);
-    setTimerRemaining(null);
-  };
-
-  const formatTimer = (seconds: number | null) => {
-    if (seconds === null) return "00:00";
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
   const [endDate, setEndDate] = useState(getTodayKey());
   const [isFilterActive, setIsFilterActive] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -246,6 +182,15 @@ export default function App() {
             if (data.baseRate) setBaseRate(data.baseRate);
             if (data.premiumRate) setPremiumRate(data.premiumRate);
             if (data.showEarnings !== undefined) setShowEarnings(data.showEarnings);
+          } else {
+            // First time logging in, push local settings to Firebase
+            await setDoc(doc(db, 'users', u.uid), {
+              categories,
+              dailyGoal,
+              baseRate,
+              premiumRate,
+              showEarnings
+            });
           }
 
           // Load logs
@@ -336,27 +281,32 @@ export default function App() {
   const tasks = logs[currentDateKey] || [];
 
   const prevLogsRef = useRef<Record<string, Task[]>>(logs);
+  const prevUserRef = useRef<User | null>(null);
 
   // Save logs whenever they change
   useEffect(() => {
     localStorage.setItem('tryrating_all_logs', JSON.stringify(logs));
     
     if (user) {
+      const userChanged = prevUserRef.current?.uid !== user.uid;
       // Find which dates changed
       for (const dateKey in logs) {
-        if (logs[dateKey] !== prevLogsRef.current[dateKey]) {
+        if (userChanged || logs[dateKey] !== prevLogsRef.current[dateKey]) {
           syncDateLogToFirebase(dateKey, logs[dateKey]);
         }
       }
       // Handle deleted dates (cleared days)
-      for (const dateKey in prevLogsRef.current) {
-        if (!logs[dateKey]) {
-          syncDateLogToFirebase(dateKey, []);
+      if (!userChanged) {
+        for (const dateKey in prevLogsRef.current) {
+          if (!logs[dateKey]) {
+            syncDateLogToFirebase(dateKey, []);
+          }
         }
       }
     }
     
     prevLogsRef.current = logs;
+    prevUserRef.current = user;
   }, [logs, user]);
 
   useEffect(() => {
@@ -959,47 +909,6 @@ export default function App() {
             <section className="px-6 pb-8 md:px-10">
               <div className="input-card bg-[#6366f1] p-8 md:p-10 rounded-[1.5rem] shadow-[0_10px_15px_-3px_rgba(99,102,241,0.3)] flex flex-col md:flex-row items-center gap-6 md:gap-8">
                 <div className="w-full">
-                  
-                  {/* Focus Timer */}
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 bg-white/10 p-5 rounded-xl border border-white/20">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white/20 rounded-lg">
-                        <Timer size={18} className="text-white" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-white uppercase tracking-wider">Focus Timer</div>
-                        <div className="text-[10px] text-white/70">Estimated time for current task</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <input 
-                        type="text" 
-                        placeholder="e.g. 3m"
-                        value={timerInput}
-                        onChange={(e) => setTimerInput(e.target.value)}
-                        disabled={isTimerRunning}
-                        className="w-24 bg-white/20 border border-white/30 rounded-lg px-3 py-2.5 text-white placeholder:text-white/50 focus:outline-none focus:border-white text-sm text-center font-bold disabled:opacity-50"
-                      />
-                      <div className="text-3xl font-mono font-bold text-white w-24 text-center tracking-tight">
-                        {formatTimer(timerRemaining)}
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={toggleTimer}
-                          className={`p-2.5 rounded-lg font-bold shadow-md hover:scale-105 active:scale-95 transition-all ${isTimerRunning ? 'bg-amber-400 text-amber-900' : 'bg-white text-[#6366f1]'}`}
-                        >
-                          {isTimerRunning ? <Pause size={18} /> : <Play size={18} className="translate-x-[1px]" />}
-                        </button>
-                        <button
-                          onClick={resetTimer}
-                          className="p-2.5 rounded-lg bg-white/20 text-white hover:bg-white/30 active:scale-95 transition-all"
-                        >
-                          <RotateCcw size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
                     <label className="text-sm font-medium text-white/90">Task Details</label>
                     <div className="flex flex-wrap gap-2">

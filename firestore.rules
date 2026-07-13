@@ -52,7 +52,6 @@ service cloud.firestore {
 
       match /logs/{dateKey} {
         allow read: if isOwner(userId);
-        allow list: if isOwner(userId) && existing().userId == request.auth.uid; // Secure list query enforcement
         allow create: if isOwner(userId) && isValidId(userId) && isValidId(dateKey) && isValidDailyLog(incoming(), userId);
         allow update: if isOwner(userId) && isValidDailyLog(incoming(), userId);
         allow delete: if isOwner(userId);
