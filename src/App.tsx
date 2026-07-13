@@ -26,7 +26,8 @@ import {
   EyeOff,
   Cloud,
   LogOut,
-  LogIn
+  LogIn,
+  ArrowUpDown
 } from 'lucide-react';
 import { Task } from './types';
 import { auth, db, loginWithGoogle, logout } from './firebase';
@@ -155,6 +156,7 @@ export default function App() {
   
   const [endDate, setEndDate] = useState(getTodayKey());
   const [isFilterActive, setIsFilterActive] = useState(false);
+  const [sortOption, setSortOption] = useState<'date-desc' | 'date-asc' | 'hours-desc' | 'hours-asc'>('date-desc');
   const [showImportModal, setShowImportModal] = useState(false);
   const [importText, setImportText] = useState('');
   const [lastDeletedTask, setLastDeletedTask] = useState<{task: Task, dateKey: string} | null>(null);
@@ -167,9 +169,11 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Ensure we don't sync on initial load
+  const isInitializingRef = useRef(true);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
       if (u) {
         setIsSyncing(true);
         try {
@@ -201,23 +205,44 @@ export default function App() {
             newLogs[docSnap.id] = docSnap.data().tasks || [];
           });
           
-          if (Object.keys(newLogs).length > 0) {
-             setLogs(prev => {
-                // Merge local and remote
-                const merged = { ...prev };
-                for (const date in newLogs) {
-                    if (!merged[date] || newLogs[date].length > merged[date].length) {
-                        merged[date] = newLogs[date];
-                    }
-                }
-                return merged;
-             });
+          const currentLocalLogs = prevLogsRef.current;
+          const mergedLogs = { ...currentLocalLogs };
+          
+          // Merge remote into local
+          for (const date in newLogs) {
+             if (!mergedLogs[date] || newLogs[date].length > mergedLogs[date].length) {
+                 mergedLogs[date] = newLogs[date];
+             }
           }
+          
+          // Push any local data that is missing or shorter on remote
+          for (const date in mergedLogs) {
+             if (!newLogs[date] || mergedLogs[date].length > newLogs[date].length) {
+                 try {
+                     await setDoc(doc(db, 'users', u.uid, 'logs', date), {
+                         userId: u.uid,
+                         dateKey: date,
+                         tasks: mergedLogs[date]
+                     });
+                 } catch (e) {
+                     console.error("Error syncing local log to remote:", e);
+                 }
+             }
+          }
+          
+          prevLogsRef.current = mergedLogs;
+          setLogs(mergedLogs);
+
         } catch (error) {
           handleFirestoreError(error, OperationType.GET, 'users');
         } finally {
           setIsSyncing(false);
+          isInitializingRef.current = false;
+          setUser(u);
         }
+      } else {
+        isInitializingRef.current = false;
+        setUser(null);
       }
     });
     return unsub;
@@ -234,6 +259,8 @@ export default function App() {
       if (error.code === 'auth/unauthorized-domain') {
         const domain = window.location.hostname;
         setAuthError(`Domain ${domain} is not authorized in Firebase Console. Add it to Authentication > Settings > Authorized domains.`);
+      } else if (error.code === 'auth/popup-blocked') {
+        setAuthError('Your browser blocked the sign-in popup. Please click the "Open in new tab" icon (the square with an arrow) in the top right of the preview pane to sign in.');
       } else {
         setAuthError(error.message || 'Failed to sign in. Please allow popups or open the app in a new tab.');
       }
@@ -251,7 +278,7 @@ export default function App() {
   };
 
   const syncSettingsToFirebase = async () => {
-    if (!user) return;
+    if (!user || isInitializingRef.current) return;
     try {
       await setDoc(doc(db, 'users', user.uid), {
         categories,
@@ -266,7 +293,7 @@ export default function App() {
   };
 
   const syncDateLogToFirebase = async (dateKey: string, dayTasks: Task[]) => {
-    if (!user) return;
+    if (!user || isInitializingRef.current) return;
     try {
       await setDoc(doc(db, 'users', user.uid, 'logs', dateKey), {
         userId: user.uid,
@@ -279,7 +306,6 @@ export default function App() {
   };
 
   const tasks = logs[currentDateKey] || [];
-
   const prevLogsRef = useRef<Record<string, Task[]>>(logs);
   const prevUserRef = useRef<User | null>(null);
 
@@ -287,11 +313,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('tryrating_all_logs', JSON.stringify(logs));
     
-    if (user) {
+    if (user && !isInitializingRef.current) {
       const userChanged = prevUserRef.current?.uid !== user.uid;
       // Find which dates changed
       for (const dateKey in logs) {
-        if (userChanged || logs[dateKey] !== prevLogsRef.current[dateKey]) {
+        if (logs[dateKey] !== prevLogsRef.current[dateKey] && !userChanged) {
           syncDateLogToFirebase(dateKey, logs[dateKey]);
         }
       }
@@ -791,13 +817,34 @@ export default function App() {
                             </span>
                          )}
                       </div>
-                      {authError && (
-                        <span className="text-[10px] text-red-500 max-w-[200px] truncate" title={authError}>{authError}</span>
-                      )}
                     </div>
                   </div>
                 </div>
               </div>
+
+              {authError && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                  <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-100 animate-in fade-in zoom-in duration-200">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-500">
+                        <LogOut size={20} />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-800">Authentication Error</h3>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+                      {authError}
+                    </p>
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => setAuthError(null)}
+                        className="px-5 py-2.5 bg-[#6366f1] text-white rounded-xl text-sm font-bold hover:bg-[#4f46e5] transition-colors"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="flex gap-3 w-full sm:w-auto items-center">
                 <button 
@@ -1175,6 +1222,20 @@ export default function App() {
                   
                   <div className="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl border border-[#e2e8f0] shadow-sm">
                     <div className="flex items-center gap-2">
+                      <ArrowUpDown size={14} className="text-[#64748b]" />
+                      <select
+                        value={sortOption}
+                        onChange={(e) => setSortOption(e.target.value as any)}
+                        className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1] text-[#475569]"
+                      >
+                        <option value="date-desc">Newest First</option>
+                        <option value="date-asc">Oldest First</option>
+                        <option value="hours-desc">Highest Hours</option>
+                        <option value="hours-asc">Lowest Hours</option>
+                      </select>
+                    </div>
+                    <div className="h-4 w-[1px] bg-slate-200 hidden sm:block"></div>
+                    <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold uppercase text-[#64748b]">From</span>
                       <input 
                         type="date" 
@@ -1215,12 +1276,22 @@ export default function App() {
 
                 <div className="grid grid-cols-1 gap-4">
                   {(() => {
-                    const filteredKeys = Object.keys(logs)
+                    let filteredKeys = Object.keys(logs)
                       .filter(dateKey => {
                         if (!isFilterActive) return true;
                         return dateKey >= startDate && dateKey <= endDate;
-                      })
-                      .sort((a, b) => b.localeCompare(a));
+                      });
+
+                    filteredKeys.sort((a, b) => {
+                      if (sortOption === 'date-desc') return b.localeCompare(a);
+                      if (sortOption === 'date-asc') return a.localeCompare(b);
+                      
+                      const hoursA = (logs[a] || []).reduce((acc, t) => acc + t.ert, 0);
+                      const hoursB = (logs[b] || []).reduce((acc, t) => acc + t.ert, 0);
+                      if (sortOption === 'hours-desc') return hoursB - hoursA;
+                      if (sortOption === 'hours-asc') return hoursA - hoursB;
+                      return 0;
+                    });
 
                     if (filteredKeys.length === 0) {
                       return (
@@ -1250,6 +1321,44 @@ export default function App() {
                       );
                     }
 
+                    const renderDayCard = (dateKey: string) => {
+                      const dayTasks = logs[dateKey];
+                      const stats = calculateStats(dayTasks);
+                      return (
+                        <button 
+                          key={dateKey}
+                          onClick={() => setSelectedHistoryDate(dateKey)}
+                          className="w-full text-left bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-sm hover:border-[#6366f1] transition-all group flex justify-between items-center"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-bold text-[#1e293b]">{formatDateLabel(dateKey)}</span>
+                              {dateKey === getTodayKey() && (
+                                <span className="text-[10px] bg-[#6366f1]/10 text-[#6366f1] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Today</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-[#64748b] font-medium">
+                              <span className="flex items-center gap-1"><CheckCircle2 size={12} /> {dayTasks.length} tasks</span>
+                              <span className="flex items-center gap-1"><Clock size={12} /> {stats.hours}h {stats.mins}m logged</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex flex-col items-end gap-1 mr-4 hidden sm:flex">
+                              <div className="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-[#6366f1]" style={{ width: `${stats.progressPercent}%` }} />
+                              </div>
+                              <span className="text-[9px] font-bold text-slate-400">{Math.round(stats.progressPercent)}% Goal</span>
+                            </div>
+                            <ChevronRight size={20} className="text-[#94a3b8] group-hover:text-[#6366f1] transition-colors" />
+                          </div>
+                        </button>
+                      );
+                    };
+
+                    if (sortOption.startsWith('hours-')) {
+                      return <div className="grid grid-cols-1 gap-3">{filteredKeys.map(renderDayCard)}</div>;
+                    }
+
                     // Grouping by Month
                     const groups: Record<string, string[]> = {};
                     filteredKeys.forEach(key => {
@@ -1259,7 +1368,7 @@ export default function App() {
                       groups[monthKey].push(key);
                     });
 
-                    return Object.keys(groups).sort((a, b) => b.localeCompare(a)).map(monthKey => {
+                    return Object.keys(groups).sort((a, b) => sortOption === 'date-desc' ? b.localeCompare(a) : a.localeCompare(b)).map(monthKey => {
                       const monthDate = new Date(monthKey + '-01T00:00:00');
                       const monthName = monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
                       const daysInMonth = groups[monthKey];
@@ -1293,39 +1402,7 @@ export default function App() {
 
                           {isExpanded && (
                             <div className="grid grid-cols-1 gap-3 pl-4 border-l-2 border-slate-100 mt-1">
-                              {daysInMonth.map(dateKey => {
-                                const dayTasks = logs[dateKey];
-                                const stats = calculateStats(dayTasks);
-                                return (
-                                  <button 
-                                    key={dateKey}
-                                    onClick={() => setSelectedHistoryDate(dateKey)}
-                                    className="w-full text-left bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-sm hover:border-[#6366f1] transition-all group flex justify-between items-center"
-                                  >
-                                    <div>
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-sm font-bold text-[#1e293b]">{formatDateLabel(dateKey)}</span>
-                                        {dateKey === getTodayKey() && (
-                                          <span className="text-[10px] bg-[#6366f1]/10 text-[#6366f1] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Today</span>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-4 text-xs text-[#64748b] font-medium">
-                                        <span className="flex items-center gap-1"><CheckCircle2 size={12} /> {dayTasks.length} tasks</span>
-                                        <span className="flex items-center gap-1"><Clock size={12} /> {stats.hours}h {stats.mins}m logged</span>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <div className="flex flex-col items-end gap-1 mr-4 hidden sm:flex">
-                                        <div className="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                          <div className="h-full bg-[#6366f1]" style={{ width: `${stats.progressPercent}%` }} />
-                                        </div>
-                                        <span className="text-[9px] font-bold text-slate-400">{Math.round(stats.progressPercent)}% Goal</span>
-                                      </div>
-                                      <ChevronRight size={20} className="text-[#94a3b8] group-hover:text-[#6366f1] transition-colors" />
-                                    </div>
-                                  </button>
-                                );
-                              })}
+                              {daysInMonth.map(renderDayCard)}
                             </div>
                           )}
                         </div>
