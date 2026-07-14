@@ -874,7 +874,7 @@ export default function App() {
         {view === 'tracker' ? (
           <>
             {/* Tracker Header */}
-            <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-6 md:px-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-4 sm:px-6 sm:py-6 md:px-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="header-title flex items-center gap-4">
                 <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center p-1.5 shadow-lg shadow-black/10">
                   <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" />
@@ -956,14 +956,14 @@ export default function App() {
             </header>
 
             {/* Stats Grid */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6 py-8 md:px-10">
-              <div className="stat-card bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 px-4 py-4 sm:px-6 sm:py-8 md:px-10">
+              <div className="stat-card bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Tasks Completed</div>
-                <div className="stat-value text-3xl font-bold text-[#6366f1]">{tasks.length}</div>
+                <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1]">{tasks.length}</div>
                 <div className="stat-sub text-xs text-slate-400 dark:text-slate-500 mt-1 italic">Today's Session</div>
               </div>
               
-              <div className="stat-card bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+              <div className="stat-card bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
                 <div className="relative z-10">
                   <div className="flex justify-between items-start">
                     <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Total ERT (Min)</div>
@@ -979,7 +979,7 @@ export default function App() {
                       <Target size={14} />
                     </button>
                   </div>
-                  <div className="stat-value text-3xl font-bold text-[#6366f1]">{totalMinutes}m</div>
+                  <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1]">{totalMinutes}m</div>
                   <div className="flex justify-between items-center mt-3">
                     <span className="stat-sub text-xs text-slate-400 dark:text-slate-500 italic">Goal: {dailyGoal}h</span>
                     <span className="text-[10px] font-bold text-[#6366f1]">{Math.round(progressPercent)}%</span>
@@ -994,15 +994,15 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="stat-card bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="stat-card bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">In Hours</div>
-                <div className="stat-value text-3xl font-bold text-[#6366f1]">
+                <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1]">
                   {hours}h {mins}m
                 </div>
                 <div className="stat-sub text-xs text-slate-400 dark:text-slate-500 mt-1 italic">Equivalent Time</div>
               </div>
 
-              <div className="stat-card bg-slate-50 dark:bg-slate-800/50 dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-white to-[#f5f3ff] relative group">
+              <div className="stat-card bg-slate-50 dark:bg-slate-800/50 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-white to-[#f5f3ff] relative group">
                 <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 flex justify-between items-center">
                   Current Period Payment
                   <button 
@@ -1012,7 +1012,7 @@ export default function App() {
                     Submit
                   </button>
                 </div>
-                <div className="stat-value text-3xl font-bold text-[#10b981]">
+                <div className="stat-value text-2xl sm:text-3xl font-bold text-[#10b981]">
                   {showEarnings ? `₦${paymentStats.earnings.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '₦••••••'}
                 </div>
                 <div className="flex justify-between items-center mt-2">
@@ -1025,8 +1025,8 @@ export default function App() {
             </section>
 
             {/* Input Card */}
-            <section className="px-6 pb-8 md:px-10">
-              <div className="input-card bg-[#6366f1] p-8 md:p-10 rounded-[1.5rem] shadow-[0_10px_15px_-3px_rgba(99,102,241,0.3)] flex flex-col md:flex-row items-center gap-6 md:gap-8">
+            <section className="px-4 pb-6 sm:px-6 sm:pb-8 md:px-10">
+              <div className="input-card bg-[#6366f1] p-5 sm:p-8 md:p-10 rounded-2xl md:rounded-[1.5rem] shadow-[0_10px_15px_-3px_rgba(99,102,241,0.3)] flex flex-col md:flex-row items-center gap-4 md:gap-8">
                 <div className="w-full">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
                     <label className="text-sm font-medium text-white/90">Task Details</label>
@@ -1057,7 +1057,7 @@ export default function App() {
                       placeholder="Category..."
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="flex-1 bg-white dark:bg-slate-900/10 border-2 border-white/20 rounded-xl px-5 py-4 text-white placeholder:text-white/40 focus:outline-none focus:border-white transition-all text-sm font-medium"
+                      className="flex-1 bg-white dark:bg-slate-900/10 border-2 border-white/20 rounded-xl px-4 py-3 md:px-5 md:py-4 text-white placeholder:text-white/40 focus:outline-none focus:border-white transition-all text-sm font-medium"
                     />
                     <input
                       ref={inputRef}
@@ -1066,11 +1066,11 @@ export default function App() {
                       placeholder="ERT (e.g. 7, 1h 20m)"
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
-                      className="flex-[2] bg-white dark:bg-slate-900 border-2 border-white rounded-xl px-5 py-4 text-2xl font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500 focus:outline-none focus:border-[#4f46e5] transition-all"
+                      className="flex-[2] bg-white dark:bg-slate-900 border-2 border-white rounded-xl px-4 py-3 md:px-5 md:py-4 text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500 focus:outline-none focus:border-[#4f46e5] transition-all"
                     />
                     <button 
                       type="submit"
-                      className="bg-white dark:bg-slate-900 text-[#6366f1] font-bold px-8 py-4 rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+                      className="bg-white dark:bg-slate-900 text-[#6366f1] font-bold px-6 py-3 md:px-8 md:py-4 rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center md:justify-start gap-2"
                     >
                       <Plus size={20} strokeWidth={3} />
                       Log Task
@@ -1081,17 +1081,17 @@ export default function App() {
             </section>
 
             {/* Table Section */}
-            <section className="flex-1 px-6 pb-10 md:px-10 flex flex-col min-h-0">
+            <section className="flex-1 px-4 pb-6 sm:px-6 sm:pb-10 md:px-10 flex flex-col min-h-0">
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
                 <div className="overflow-y-auto max-h-[500px]">
                   <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 z-20">
                       <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-slate-400">
-                        <th className="px-8 py-4 w-24">#</th>
-                        <th className="px-8 py-4">Category</th>
-                        <th className="px-8 py-4">Task ERT</th>
-                        <th className="px-8 py-4">Running Total</th>
-                        <th className="px-8 py-4 w-20 text-right">Action</th>
+                        <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 w-12 sm:w-24">#</th>
+                        <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">Category</th>
+                        <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">Task ERT</th>
+                        <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">Running Total</th>
+                        <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 w-16 sm:w-20 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#f1f5f9]">
@@ -1108,21 +1108,21 @@ export default function App() {
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 className="hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:bg-slate-800/50 dark:bg-slate-950 transition-colors"
                               >
-                                <td className="px-8 py-4 text-slate-500 dark:text-slate-400 font-medium">
+                                <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-500 dark:text-slate-400 font-medium">
                                   {tasks.length - index}
                                 </td>
-                                <td className="px-8 py-4">
+                                <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">
                                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1] bg-[#6366f1]/10 px-2 py-1 rounded-md">
                                     {task.category || 'General'}
                                   </span>
                                 </td>
-                                <td className="px-8 py-4 text-slate-800 dark:text-slate-100 font-semibold">
+                                <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-800 dark:text-slate-100 font-semibold">
                                   {Math.floor(task.ert / 60)}h {Math.round(task.ert % 60)}m
                                 </td>
-                                <td className="px-8 py-4 text-slate-800 dark:text-slate-100 font-medium opacity-70">
+                                <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-800 dark:text-slate-100 font-medium opacity-70">
                                   {Math.floor(runningTotal / 60)}h {Math.round(runningTotal % 60)}m
                                 </td>
-                                <td className="px-8 py-4 text-right">
+                                <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-right">
                                   <button 
                                     onClick={() => removeTask(task.id)}
                                     className="p-2 text-slate-400 dark:text-slate-500 hover:text-[#ef4444] rounded-lg transition-all"
@@ -1137,7 +1137,7 @@ export default function App() {
                       </AnimatePresence>
                       {tasks.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="px-8 py-16 text-center text-slate-400 dark:text-slate-500 italic">
+                          <td colSpan={4} className="px-4 sm:px-8 py-12 sm:py-16 text-center text-slate-400 dark:text-slate-500 italic">
                             No tasks logged for today.
                           </td>
                         </tr>
@@ -1178,16 +1178,16 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="px-6 py-8 md:px-10">
+                <div className="px-4 py-6 sm:px-6 sm:py-8 md:px-10">
                   <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50 mb-6">{formatDateLabel(selectedHistoryDate)}</h2>
                   
                   {/* Stats snippet for history day */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 sm:mb-8">
+                    <div className="bg-white dark:bg-slate-900 p-2 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                       <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Tasks</div>
                       <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{(logs[selectedHistoryDate] || []).length}</div>
                     </div>
-                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div className="bg-white dark:bg-slate-900 p-2 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                       <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Total ERT (Day)</div>
                       <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                         {(() => {
@@ -1219,25 +1219,25 @@ export default function App() {
                     <table className="w-full text-left border-collapse">
                       <thead className="bg-slate-50 dark:bg-slate-800/50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
                         <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-slate-400">
-                          <th className="px-8 py-4 w-24">#</th>
-                          <th className="px-8 py-4">Category</th>
-                          <th className="px-8 py-4">Task ERT</th>
-                          <th className="px-8 py-4 w-20 text-right">Action</th>
+                          <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 w-12 sm:w-24">#</th>
+                          <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">Category</th>
+                          <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">Task ERT</th>
+                          <th className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 w-16 sm:w-20 text-right">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#f1f5f9]">
                         {(logs[selectedHistoryDate] || []).map((task, index) => (
                           <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:bg-slate-800/50 dark:bg-slate-950 transition-colors">
-                            <td className="px-8 py-4 text-slate-500 dark:text-slate-400 font-medium">{index + 1}</td>
-                            <td className="px-8 py-4">
+                            <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-500 dark:text-slate-400 font-medium">{index + 1}</td>
+                            <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1] bg-[#6366f1]/10 px-2 py-1 rounded-md">
                                 {task.category || 'General'}
                               </span>
                             </td>
-                            <td className="px-8 py-4 text-slate-800 dark:text-slate-100 font-semibold">
+                            <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-800 dark:text-slate-100 font-semibold">
                               {Math.floor(task.ert / 60)}h {Math.round(task.ert % 60)}m
                             </td>
-                            <td className="px-8 py-4 text-right">
+                            <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-right">
                               <button 
                                 onClick={() => removeTask(task.id, selectedHistoryDate)}
                                 className="p-2 text-slate-400 dark:text-slate-500 hover:text-[#ef4444] rounded-lg transition-all"
@@ -1254,7 +1254,7 @@ export default function App() {
               </div>
             ) : (
               /* History List View */
-              <div className="px-6 py-8 md:px-10 flex-1 overflow-y-auto">
+              <div className="px-4 py-6 sm:px-6 sm:py-8 md:px-10 flex-1 overflow-y-auto">
                 <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
@@ -1752,7 +1752,7 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden p-8"
+              className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden p-5 sm:p-8"
             >
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-slate-900">Account Settings</h3>
