@@ -815,13 +815,13 @@ export default function App() {
           <div className="flex">
             <button 
               onClick={() => setView('tracker')}
-              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'tracker' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-100'}`}
+              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'tracker' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100'}`}
             >
               Tracker
             </button>
             <button 
               onClick={() => setView('history')}
-              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'history' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-100'}`}
+              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'history' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100'}`}
             >
               History
             </button>
@@ -857,7 +857,7 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <button onClick={handleSignIn} className="text-xs text-[#10b981] hover:underline flex items-center gap-1 font-medium bg-[#10b981]/10 px-3 py-1.5 rounded-md transition-colors hover:bg-[#10b981]/20">
+              <button onClick={handleSignIn} className="text-xs text-[#10b981] dark:text-[#34d399] hover:underline flex items-center gap-1 font-medium bg-[#10b981]/10 px-3 py-1.5 rounded-md transition-colors hover:bg-[#10b981]/20">
                 <LogIn size={14} />
                 Sign In to Sync
               </button>
@@ -901,9 +901,9 @@ export default function App() {
                       <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-500">
                         <LogOut size={20} />
                       </div>
-                      <h3 className="text-xl font-bold text-slate-800">Authentication Error</h3>
+                      <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Authentication Error</h3>
                     </div>
-                    <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+                    <p className="text-sm text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">
                       {authError}
                     </p>
                     <div className="flex justify-end">
@@ -947,7 +947,7 @@ export default function App() {
                 </button>
                 <button 
                   onClick={() => clearDay(currentDateKey)}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-[#fef2f2] border border-[#fee2e2] rounded-lg text-sm font-semibold text-[#dc2626] hover:bg-[#fee2e2] transition-all"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-[#fef2f2] dark:bg-red-500/10 border border-[#fee2e2] dark:border-red-500/20 rounded-lg text-sm font-semibold text-[#dc2626] dark:text-red-400 hover:bg-[#fee2e2] dark:hover:bg-red-500/20 transition-all"
                 >
                   <RotateCcw size={16} />
                   Clear
@@ -959,7 +959,7 @@ export default function App() {
             <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 px-4 py-4 sm:px-6 sm:py-8 md:px-10">
               <div className="stat-card bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Tasks Completed</div>
-                <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1]">{tasks.length}</div>
+                <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1] dark:text-[#818cf8]">{tasks.length}</div>
                 <div className="stat-sub text-xs text-slate-400 dark:text-slate-500 mt-1 italic">Today's Session</div>
               </div>
               
@@ -979,10 +979,10 @@ export default function App() {
                       <Target size={14} />
                     </button>
                   </div>
-                  <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1]">{totalMinutes}m</div>
+                  <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1] dark:text-[#818cf8]">{totalMinutes}m</div>
                   <div className="flex justify-between items-center mt-3">
                     <span className="stat-sub text-xs text-slate-400 dark:text-slate-500 italic">Goal: {dailyGoal}h</span>
-                    <span className="text-[10px] font-bold text-[#6366f1]">{Math.round(progressPercent)}%</span>
+                    <span className="text-[10px] font-bold text-[#6366f1] dark:text-[#818cf8]">{Math.round(progressPercent)}%</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden">
                     <motion.div 
@@ -996,7 +996,7 @@ export default function App() {
 
               <div className="stat-card bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">In Hours</div>
-                <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1]">
+                <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1] dark:text-[#818cf8]">
                   {hours}h {mins}m
                 </div>
                 <div className="stat-sub text-xs text-slate-400 dark:text-slate-500 mt-1 italic">Equivalent Time</div>
@@ -1012,7 +1012,7 @@ export default function App() {
                     Submit
                   </button>
                 </div>
-                <div className="stat-value text-2xl sm:text-3xl font-bold text-[#10b981]">
+                <div className="stat-value text-2xl sm:text-3xl font-bold text-[#10b981] dark:text-[#34d399]">
                   {showEarnings ? `₦${paymentStats.earnings.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '₦••••••'}
                 </div>
                 <div className="flex justify-between items-center mt-2">
@@ -1036,7 +1036,7 @@ export default function App() {
                           key={cat}
                           type="button"
                           onClick={() => setSelectedCategory(cat)}
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md transition-all ${selectedCategory === cat ? 'bg-white dark:bg-slate-900 text-[#6366f1]' : 'bg-white dark:bg-slate-900/10 text-white/60 hover:bg-white dark:bg-slate-900/20'}`}
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md transition-all ${selectedCategory === cat ? 'bg-white text-[#6366f1]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
                         >
                           {cat}
                         </button>
@@ -1044,7 +1044,7 @@ export default function App() {
                       <button 
                         type="button"
                         onClick={() => setShowCategoryModal(true)}
-                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-white dark:bg-slate-900/20 text-white/90 hover:bg-white dark:bg-slate-900/40 transition-all flex items-center gap-1 border border-white/30"
+                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-white/20 text-white/90 hover:bg-white/30 transition-all flex items-center gap-1 border border-white/30"
                       >
                         <Settings size={10} />
                         Manage
@@ -1057,7 +1057,7 @@ export default function App() {
                       placeholder="Category..."
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="flex-1 bg-white dark:bg-slate-900/10 border-2 border-white/20 rounded-xl px-4 py-3 md:px-5 md:py-4 text-white placeholder:text-white/40 focus:outline-none focus:border-white transition-all text-sm font-medium"
+                      className="flex-1 bg-white/10 border-2 border-white/20 rounded-xl px-4 py-3 md:px-5 md:py-4 text-white placeholder:text-white/40 focus:outline-none focus:border-white transition-all text-sm font-medium"
                     />
                     <input
                       ref={inputRef}
@@ -1066,11 +1066,11 @@ export default function App() {
                       placeholder="ERT (e.g. 7, 1h 20m)"
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
-                      className="flex-[2] bg-white dark:bg-slate-900 border-2 border-white rounded-xl px-4 py-3 md:px-5 md:py-4 text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500 focus:outline-none focus:border-[#4f46e5] transition-all"
+                      className="flex-[2] bg-white border-2 border-white rounded-xl px-4 py-3 md:px-5 md:py-4 text-xl md:text-2xl font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-white transition-all"
                     />
                     <button 
                       type="submit"
-                      className="bg-white dark:bg-slate-900 text-[#6366f1] font-bold px-6 py-3 md:px-8 md:py-4 rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center md:justify-start gap-2"
+                      className="bg-white text-[#6366f1] font-bold px-6 py-3 md:px-8 md:py-4 rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center md:justify-start gap-2"
                     >
                       <Plus size={20} strokeWidth={3} />
                       Log Task
@@ -1112,7 +1112,7 @@ export default function App() {
                                   {tasks.length - index}
                                 </td>
                                 <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1] bg-[#6366f1]/10 px-2 py-1 rounded-md">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1] dark:text-[#818cf8] bg-[#6366f1]/10 px-2 py-1 rounded-md">
                                     {task.category || 'General'}
                                   </span>
                                 </td>
@@ -1171,7 +1171,7 @@ export default function App() {
                     </button>
                     <button 
                       onClick={() => clearDay(selectedHistoryDate)}
-                      className="p-2.5 bg-red-50 text-[#dc2626] rounded-lg hover:bg-red-100 transition-all"
+                      className="p-2.5 bg-red-50 dark:bg-red-500/10 text-[#dc2626] dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-500/20 transition-all"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -1199,15 +1199,15 @@ export default function App() {
                       </div>
                     </div>
                     <div className="bg-[#6366f1]/5 p-4 rounded-xl border border-[#6366f1]/20 shadow-sm text-center">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#6366f1] mb-1">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#6366f1] dark:text-[#818cf8] mb-1">
                         Period Stat ({getPeriodStatsForDate(selectedHistoryDate).periodLabel})
                       </div>
                       <div className="flex flex-col gap-1">
-                        <div className="text-2xl font-bold text-[#6366f1]">
+                        <div className="text-2xl font-bold text-[#6366f1] dark:text-[#818cf8]">
                           {getPeriodStatsForDate(selectedHistoryDate).hours.toFixed(1)}h
                         </div>
                         {showEarnings && (
-                          <div className="text-sm font-semibold text-[#6366f1]/60">
+                          <div className="text-sm font-semibold text-[#6366f1]/60 dark:text-[#818cf8]/80">
                             ₦{getPeriodStatsForDate(selectedHistoryDate).earnings.toLocaleString()}
                           </div>
                         )}
@@ -1230,7 +1230,7 @@ export default function App() {
                           <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:bg-slate-800/50 dark:bg-slate-950 transition-colors">
                             <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-500 dark:text-slate-400 font-medium">{index + 1}</td>
                             <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1] bg-[#6366f1]/10 px-2 py-1 rounded-md">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1] dark:text-[#818cf8] bg-[#6366f1]/10 px-2 py-1 rounded-md">
                                 {task.category || 'General'}
                               </span>
                             </td>
@@ -1276,7 +1276,7 @@ export default function App() {
                               alert('All data has been cleared.');
                             }
                           }}
-                          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-[#dc2626] hover:bg-[#dc2626] hover:text-white rounded-lg text-xs font-bold transition-all border border-[#fee2e2]"
+                          className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-500/10 text-[#dc2626] dark:text-red-400 hover:bg-[#dc2626] dark:hover:bg-red-500 hover:text-white dark:hover:text-white rounded-lg text-xs font-bold transition-all border border-[#fee2e2] dark:border-red-500/20"
                         >
                           <Trash2 size={14} />
                           Clear All Data
@@ -1298,7 +1298,7 @@ export default function App() {
                       <select
                         value={sortOption}
                         onChange={(e) => setSortOption(e.target.value as any)}
-                        className="text-xs font-semibold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1] text-slate-600 dark:text-slate-400"
+                        className="text-xs font-semibold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 outline-none focus:border-[#6366f1] text-slate-600 dark:text-slate-300"
                       >
                         <option value="date-desc">Newest First</option>
                         <option value="date-asc">Oldest First</option>
@@ -1316,7 +1316,7 @@ export default function App() {
                           setStartDate(e.target.value);
                           setIsFilterActive(true);
                         }}
-                        className="text-xs font-semibold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1]"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 outline-none focus:border-[#6366f1]"
                       />
                     </div>
                     <div className="flex items-center gap-2">
@@ -1328,7 +1328,7 @@ export default function App() {
                           setEndDate(e.target.value);
                           setIsFilterActive(true);
                         }}
-                        className="text-xs font-semibold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1]"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 outline-none focus:border-[#6366f1]"
                       />
                     </div>
                     {isFilterActive && (
@@ -1338,7 +1338,7 @@ export default function App() {
                           setStartDate(getTodayKey());
                           setEndDate(getTodayKey());
                         }}
-                        className="text-[10px] font-bold text-[#6366f1] hover:underline"
+                        className="text-[10px] font-bold text-[#6366f1] dark:text-[#818cf8] hover:underline"
                       >
                         Reset
                       </button>
@@ -1377,14 +1377,14 @@ export default function App() {
                           {isFilterActive ? (
                             <button 
                               onClick={() => setIsFilterActive(false)}
-                              className="mt-4 text-[#6366f1] font-bold text-sm hover:underline"
+                              className="mt-4 text-[#6366f1] dark:text-[#818cf8] font-bold text-sm hover:underline"
                             >
                               Show all records
                             </button>
                           ) : (
                             <button 
                               onClick={() => setView('tracker')}
-                              className="mt-4 text-[#6366f1] font-bold text-sm hover:underline"
+                              className="mt-4 text-[#6366f1] dark:text-[#818cf8] font-bold text-sm hover:underline"
                             >
                               Start tracking now
                             </button>
@@ -1406,7 +1406,7 @@ export default function App() {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{formatDateLabel(dateKey)}</span>
                               {dateKey === getTodayKey() && (
-                                <span className="text-[10px] bg-[#6366f1]/10 text-[#6366f1] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Today</span>
+                                <span className="text-[10px] bg-[#6366f1]/10 text-[#6366f1] dark:text-[#818cf8] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Today</span>
                               )}
                             </div>
                             <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -1462,7 +1462,7 @@ export default function App() {
                               <span className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                 <ChevronRight size={16} className="text-slate-400" />
                               </span>
-                              <h3 className="text-sm font-bold text-slate-800">{monthName}</h3>
+                              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{monthName}</h3>
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-full">
                                 {daysInMonth.length} Days
                               </span>
@@ -1491,7 +1491,7 @@ export default function App() {
       {/* Floating Tip - Only on tracker view */}
       {view === 'tracker' && (
         <div className="fixed bottom-6 right-6 hidden md:flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-3 rounded-2xl shadow-xl">
-          <div className="w-10 h-10 bg-[#6366f1]/10 rounded-xl flex items-center justify-center text-[#6366f1]">
+          <div className="w-10 h-10 bg-[#6366f1]/10 rounded-xl flex items-center justify-center text-[#6366f1] dark:text-[#818cf8]">
             <Target size={20} />
           </div>
           <div className="flex flex-col">
@@ -1550,7 +1550,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={() => setShowSubmitPaymentModal(false)}
-                  className="p-2 hover:bg-white dark:bg-slate-900/10 rounded-full transition-colors"
+                  className="p-2 hover:bg-black/10 rounded-full transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -1560,13 +1560,13 @@ export default function App() {
                 <div className="flex bg-slate-100 p-1 rounded-xl">
                   <button 
                     onClick={() => setSubmissionPeriod('current')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${submissionPeriod === 'current' ? 'bg-white dark:bg-slate-900 shadow-sm text-[#10b981]' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${submissionPeriod === 'current' ? 'bg-white dark:bg-slate-900 shadow-sm text-[#10b981] dark:text-[#34d399]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                   >
                     Current Period
                   </button>
                   <button 
                     onClick={() => setSubmissionPeriod('previous')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${submissionPeriod === 'previous' ? 'bg-white dark:bg-slate-900 shadow-sm text-[#10b981]' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${submissionPeriod === 'previous' ? 'bg-white dark:bg-slate-900 shadow-sm text-[#10b981] dark:text-[#34d399]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                   >
                     Previous Period
                   </button>
@@ -1580,13 +1580,13 @@ export default function App() {
                   return (
                     <div className={`grid gap-4 ${showEarnings ? 'grid-cols-2' : 'grid-cols-1'}`}>
                       <div className="bg-[#10b981]/10 border border-[#10b981]/20 rounded-xl p-4 flex flex-col justify-center items-center">
-                        <div className="text-[#10b981] text-xs font-bold uppercase tracking-wider mb-1">Total Time</div>
-                        <div className="text-2xl font-bold text-[#065f46]">{h}h {m}m</div>
+                        <div className="text-[#10b981] dark:text-[#34d399] text-xs font-bold uppercase tracking-wider mb-1">Total Time</div>
+                        <div className="text-2xl font-bold text-[#065f46] dark:text-[#34d399]">{h}h {m}m</div>
                       </div>
                       {showEarnings && (
                         <div className="bg-[#6366f1]/10 border border-[#6366f1]/20 rounded-xl p-4 flex flex-col justify-center items-center">
                           <div className="text-[#6366f1] text-xs font-bold uppercase tracking-wider mb-1">Estimated Earnings</div>
-                          <div className="text-2xl font-bold text-[#3730a3]">₦{stats.earnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                          <div className="text-2xl font-bold text-[#3730a3] dark:text-[#818cf8]">₦{stats.earnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                         </div>
                       )}
                     </div>
@@ -1597,7 +1597,7 @@ export default function App() {
                   {generatePaymentReport()}
                   <button 
                     onClick={copyPaymentReport}
-                    className="absolute top-4 right-4 p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 text-slate-400 hover:text-[#10b981] hover:border-[#10b981] shadow-sm opacity-0 group-hover:opacity-100 transition-all"
+                    className="absolute top-4 right-4 p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 text-slate-400 hover:text-[#10b981] dark:hover:text-[#34d399] hover:border-[#10b981] dark:hover:border-[#34d399] shadow-sm opacity-0 group-hover:opacity-100 transition-all"
                   >
                     <Copy size={16} />
                   </button>
@@ -1607,7 +1607,7 @@ export default function App() {
               <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 flex gap-3">
                 <button 
                   onClick={() => setShowSubmitPaymentModal(false)}
-                  className="flex-1 py-3 bg-white dark:bg-slate-900 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-all text-sm"
+                  className="flex-1 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm"
                 >
                   Close
                 </button>
@@ -1654,7 +1654,7 @@ export default function App() {
                     setShowCategoryModal(false);
                     setEditingCategoryIndex(null);
                   }}
-                  className="p-2 hover:bg-white dark:bg-slate-900/10 rounded-full transition-colors"
+                  className="p-2 hover:bg-black/10 rounded-full transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -1669,7 +1669,7 @@ export default function App() {
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addCategory()}
-                    className="flex-1 bg-slate-100 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-[#6366f1]"
+                    className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1]"
                   />
                   <button 
                     onClick={addCategory}
@@ -1691,7 +1691,7 @@ export default function App() {
                             value={editingCategoryValue}
                             onChange={(e) => setEditingCategoryValue(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && saveEditedCategory()}
-                            className="flex-1 bg-white dark:bg-slate-900 border border-[#6366f1] rounded-lg px-3 py-1 text-sm outline-none"
+                            className="flex-1 bg-white dark:bg-slate-950 border border-[#6366f1] rounded-lg px-3 py-1 text-sm outline-none text-slate-900 dark:text-slate-100"
                           />
                           <button 
                             onClick={saveEditedCategory}
@@ -1702,17 +1702,17 @@ export default function App() {
                         </div>
                       ) : (
                         <>
-                          <span className="text-sm font-semibold text-slate-700">{cat}</span>
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{cat}</span>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
                               onClick={() => startEditingCategory(idx)}
-                              className="p-1.5 text-slate-400 hover:text-[#6366f1] hover:bg-white dark:bg-slate-900 rounded-lg"
+                              className="p-1.5 text-slate-400 hover:text-[#6366f1] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
                             >
                               <Edit2 size={16} />
                             </button>
                             <button 
                               onClick={() => deleteCategory(cat)}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-white dark:bg-slate-900 rounded-lg"
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -1727,7 +1727,7 @@ export default function App() {
               <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100">
                 <button 
                   onClick={() => setShowCategoryModal(false)}
-                  className="w-full py-3 bg-white dark:bg-slate-900 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-all text-sm"
+                  className="w-full py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm"
                 >
                   Done
                 </button>
@@ -1755,7 +1755,7 @@ export default function App() {
               className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden p-5 sm:p-8"
             >
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-slate-900">Account Settings</h3>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Account Settings</h3>
                 <button 
                   onClick={() => setShowGoalModal(false)}
                   className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
@@ -1774,7 +1774,7 @@ export default function App() {
                     step="0.5"
                     value={tempGoal}
                     onChange={(e) => setTempGoal(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 rounded-xl px-4 py-2 text-lg font-bold text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all"
+                    className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-lg font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
                   />
                 </div>
 
@@ -1787,7 +1787,7 @@ export default function App() {
                       type="number"
                       value={tempBaseRate}
                       onChange={(e) => setTempBaseRate(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 rounded-xl px-4 py-2 text-md font-bold text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all"
+                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-md font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
                     />
                   </div>
                   <div>
@@ -1798,7 +1798,7 @@ export default function App() {
                       type="number"
                       value={tempPremiumRate}
                       onChange={(e) => setTempPremiumRate(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 rounded-xl px-4 py-2 text-md font-bold text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all"
+                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-md font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
                     />
                   </div>
                 </div>
@@ -1848,7 +1848,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={() => setShowImportModal(false)}
-                  className="p-2 hover:bg-white dark:bg-slate-900/10 rounded-full transition-colors"
+                  className="p-2 hover:bg-black/10 rounded-full transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -1874,7 +1874,7 @@ Example:
 3 6 9 9 3 3 3"
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
-                  className="w-full h-80 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 rounded-xl px-5 py-4 text-sm font-mono text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all resize-none"
+                  className="w-full h-80 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-5 py-4 text-sm font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all resize-none"
                 />
               </div>
 
