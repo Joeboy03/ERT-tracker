@@ -25,7 +25,7 @@ import {
   Eye,
   EyeOff,
   Cloud,
-  LogOut, Sun, Moon,
+  LogOut,
   LogIn,
   ArrowUpDown,
   User as UserIcon
@@ -173,19 +173,6 @@ export default function App() {
 
   const [user, setUser] = useState<User | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('tryrating_dark_mode');
-    return saved !== null ? JSON.parse(saved) : window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('tryrating_dark_mode', JSON.stringify(darkMode));
-  }, [darkMode]);
 
   // Ensure we don't sync on initial load
   const isInitializingRef = useRef(true);
@@ -808,39 +795,32 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-sans overflow-x-hidden selection:bg-[#6366f1] selection:text-white pb-12">
-      <div className="max-w-5xl mx-auto md:my-10 bg-slate-50 dark:bg-slate-800/50 dark:bg-slate-950 md:rounded-2xl md:shadow-2xl overflow-hidden min-h-screen md:min-h-0 flex flex-col">
+    <div className="min-h-screen bg-[#f1f5f9] text-[#1e293b] font-sans overflow-x-hidden selection:bg-[#6366f1] selection:text-white pb-12">
+      <div className="max-w-5xl mx-auto md:my-10 bg-[#f8fafc] md:rounded-2xl md:shadow-2xl overflow-hidden min-h-screen md:min-h-0 flex flex-col">
         {/* Navigation Bar */}
-        <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center px-6 md:px-10">
+        <div className="bg-white border-b border-[#e2e8f0] flex justify-between items-center px-6 md:px-10">
           <div className="flex">
             <button 
               onClick={() => setView('tracker')}
-              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'tracker' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-100'}`}
+              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'tracker' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-[#64748b] hover:text-[#1e293b]'}`}
             >
               Tracker
             </button>
             <button 
               onClick={() => setView('history')}
-              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'history' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-100'}`}
+              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'history' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-[#64748b] hover:text-[#1e293b]'}`}
             >
               History
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setDarkMode(!darkMode)} 
-              className="p-1.5 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Toggle Dark Mode"
-            >
-              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
             {user && isSyncing && (
-               <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1 mr-2 hidden sm:flex">
+               <span className="text-xs text-[#94a3b8] flex items-center gap-1 mr-2 hidden sm:flex">
                   <Cloud size={12} className="animate-pulse" /> Syncing...
                </span>
             )}
             {user ? (
-              <div className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 rounded-lg p-1 pr-2 shadow-sm">
+              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg p-1 pr-2 shadow-sm">
                 <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 border border-slate-200">
                   {user.photoURL ? (
                     <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" />
@@ -874,19 +854,19 @@ export default function App() {
         {view === 'tracker' ? (
           <>
             {/* Tracker Header */}
-            <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-6 md:px-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <header className="bg-white border-b border-[#e2e8f0] px-6 py-6 md:px-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="header-title flex items-center gap-4">
                 <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center p-1.5 shadow-lg shadow-black/10">
                   <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">TryRating Time Tracker</h1>
+                  <h1 className="text-2xl font-bold text-[#0f172a] tracking-tight">TryRating Time Tracker</h1>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <p className="text-sm text-[#64748b] flex items-center gap-2">
                       <Calendar size={14} />
                       {formatDateLabel(currentDateKey)}
                     </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5 font-medium">
+                    <p className="text-xs text-[#94a3b8] flex items-center gap-1.5 font-medium">
                       <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
                       Auto-backup: {lastBackup}
                     </p>
@@ -896,7 +876,7 @@ export default function App() {
 
               {authError && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-100 animate-in fade-in zoom-in duration-200">
+                  <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-100 animate-in fade-in zoom-in duration-200">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-500">
                         <LogOut size={20} />
@@ -926,21 +906,21 @@ export default function App() {
                     setTempPremiumRate(premiumRate.toString());
                     setShowGoalModal(true);
                   }}
-                  className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-[#6366f1] transition-all"
+                  className="p-2.5 rounded-lg border border-[#e2e8f0] bg-white text-[#64748b] hover:text-[#6366f1] transition-all"
                   title="Settings"
                 >
                   <Settings size={18} />
                 </button>
                 <button 
                   onClick={() => setShowEarnings(!showEarnings)}
-                  className={`p-2.5 rounded-lg border transition-all ${showEarnings ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-[#6366f1]' : 'bg-[#6366f1] border-[#6366f1] text-white'}`}
+                  className={`p-2.5 rounded-lg border transition-all ${showEarnings ? 'bg-white border-[#e2e8f0] text-[#64748b] hover:text-[#6366f1]' : 'bg-[#6366f1] border-[#6366f1] text-white'}`}
                   title={showEarnings ? "Hide Earnings" : "Show Earnings"}
                 >
                   {showEarnings ? <Eye size={18} /> : <EyeOff size={18} />}
                 </button>
                 <button 
                   onClick={() => copyLogForDate(currentDateKey)}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:bg-slate-800/50 dark:bg-slate-950 transition-all"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-[#e2e8f0] rounded-lg text-sm font-semibold text-[#475569] hover:bg-[#f8fafc] transition-all"
                 >
                   {copyStatus === 'copied' ? <CheckCircle2 size={16} className="text-[#6366f1]" /> : <Copy size={16} />}
                   {copyStatus === 'copied' ? 'Copied!' : 'Copy Log'}
@@ -957,16 +937,16 @@ export default function App() {
 
             {/* Stats Grid */}
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6 py-8 md:px-10">
-              <div className="stat-card bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Tasks Completed</div>
+              <div className="stat-card bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-sm">
+                <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-[#64748b] mb-2">Tasks Completed</div>
                 <div className="stat-value text-3xl font-bold text-[#6366f1]">{tasks.length}</div>
-                <div className="stat-sub text-xs text-slate-400 dark:text-slate-500 mt-1 italic">Today's Session</div>
+                <div className="stat-sub text-xs text-[#94a3b8] mt-1 italic">Today's Session</div>
               </div>
               
-              <div className="stat-card bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+              <div className="stat-card bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-sm relative overflow-hidden group">
                 <div className="relative z-10">
                   <div className="flex justify-between items-start">
-                    <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Total ERT (Min)</div>
+                    <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-[#64748b] mb-2">Total ERT (Min)</div>
                     <button 
                       onClick={() => {
                         setTempGoal(dailyGoal.toString());
@@ -974,17 +954,17 @@ export default function App() {
                         setTempPremiumRate(premiumRate.toString());
                         setShowGoalModal(true);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 dark:text-slate-500 hover:text-[#6366f1] transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-[#94a3b8] hover:text-[#6366f1] transition-all"
                     >
                       <Target size={14} />
                     </button>
                   </div>
                   <div className="stat-value text-3xl font-bold text-[#6366f1]">{totalMinutes}m</div>
                   <div className="flex justify-between items-center mt-3">
-                    <span className="stat-sub text-xs text-slate-400 dark:text-slate-500 italic">Goal: {dailyGoal}h</span>
+                    <span className="stat-sub text-xs text-[#94a3b8] italic">Goal: {dailyGoal}h</span>
                     <span className="text-[10px] font-bold text-[#6366f1]">{Math.round(progressPercent)}%</span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden">
+                  <div className="w-full h-1.5 bg-[#f1f5f9] rounded-full mt-2 overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${progressPercent}%` }}
@@ -994,16 +974,16 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="stat-card bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">In Hours</div>
+              <div className="stat-card bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-sm">
+                <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-[#64748b] mb-2">In Hours</div>
                 <div className="stat-value text-3xl font-bold text-[#6366f1]">
                   {hours}h {mins}m
                 </div>
-                <div className="stat-sub text-xs text-slate-400 dark:text-slate-500 mt-1 italic">Equivalent Time</div>
+                <div className="stat-sub text-xs text-[#94a3b8] mt-1 italic">Equivalent Time</div>
               </div>
 
-              <div className="stat-card bg-slate-50 dark:bg-slate-800/50 dark:bg-slate-950 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-white to-[#f5f3ff] relative group">
-                <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 flex justify-between items-center">
+              <div className="stat-card bg-[#f8fafc] p-5 rounded-xl border border-[#e2e8f0] shadow-sm bg-gradient-to-br from-white to-[#f5f3ff] relative group">
+                <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-[#64748b] mb-2 flex justify-between items-center">
                   Current Period Payment
                   <button 
                     onClick={() => setShowSubmitPaymentModal(true)}
@@ -1016,7 +996,7 @@ export default function App() {
                   {showEarnings ? `₦${paymentStats.earnings.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '₦••••••'}
                 </div>
                 <div className="flex justify-between items-center mt-2">
-                  <span className="stat-sub text-xs text-slate-400 dark:text-slate-500 italic">Rate: {showEarnings ? `₦${paymentStats.rate}/hr` : '₦•••/hr'}</span>
+                  <span className="stat-sub text-xs text-[#94a3b8] italic">Rate: {showEarnings ? `₦${paymentStats.rate}/hr` : '₦•••/hr'}</span>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${paymentStats.hoursTotal >= 40 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                     {paymentStats.hoursTotal.toFixed(1)}h / 40h
                   </span>
@@ -1036,7 +1016,7 @@ export default function App() {
                           key={cat}
                           type="button"
                           onClick={() => setSelectedCategory(cat)}
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md transition-all ${selectedCategory === cat ? 'bg-white dark:bg-slate-900 text-[#6366f1]' : 'bg-white dark:bg-slate-900/10 text-white/60 hover:bg-white dark:bg-slate-900/20'}`}
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md transition-all ${selectedCategory === cat ? 'bg-white text-[#6366f1]' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
                         >
                           {cat}
                         </button>
@@ -1044,7 +1024,7 @@ export default function App() {
                       <button 
                         type="button"
                         onClick={() => setShowCategoryModal(true)}
-                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-white dark:bg-slate-900/20 text-white/90 hover:bg-white dark:bg-slate-900/40 transition-all flex items-center gap-1 border border-white/30"
+                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md bg-white/20 text-white/90 hover:bg-white/40 transition-all flex items-center gap-1 border border-white/30"
                       >
                         <Settings size={10} />
                         Manage
@@ -1057,7 +1037,7 @@ export default function App() {
                       placeholder="Category..."
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="flex-1 bg-white dark:bg-slate-900/10 border-2 border-white/20 rounded-xl px-5 py-4 text-white placeholder:text-white/40 focus:outline-none focus:border-white transition-all text-sm font-medium"
+                      className="flex-1 bg-white/10 border-2 border-white/20 rounded-xl px-5 py-4 text-white placeholder:text-white/40 focus:outline-none focus:border-white transition-all text-sm font-medium"
                     />
                     <input
                       ref={inputRef}
@@ -1066,11 +1046,11 @@ export default function App() {
                       placeholder="ERT (e.g. 7, 1h 20m)"
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
-                      className="flex-[2] bg-white dark:bg-slate-900 border-2 border-white rounded-xl px-5 py-4 text-2xl font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500 focus:outline-none focus:border-[#4f46e5] transition-all"
+                      className="flex-[2] bg-white border-2 border-white rounded-xl px-5 py-4 text-2xl font-bold text-[#1e293b] placeholder:text-[#94a3b8] focus:outline-none focus:border-[#4f46e5] transition-all"
                     />
                     <button 
                       type="submit"
-                      className="bg-white dark:bg-slate-900 text-[#6366f1] font-bold px-8 py-4 rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
+                      className="bg-white text-[#6366f1] font-bold px-8 py-4 rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2"
                     >
                       <Plus size={20} strokeWidth={3} />
                       Log Task
@@ -1082,11 +1062,11 @@ export default function App() {
 
             {/* Table Section */}
             <section className="flex-1 px-6 pb-10 md:px-10 flex flex-col min-h-0">
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+              <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
                 <div className="overflow-y-auto max-h-[500px]">
                   <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800/50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 z-20">
-                      <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-slate-400">
+                    <thead className="sticky top-0 bg-[#f8fafc] border-b border-[#e2e8f0] z-20">
+                      <tr className="text-[10px] uppercase font-bold tracking-widest text-[#64748b]">
                         <th className="px-8 py-4 w-24">#</th>
                         <th className="px-8 py-4">Category</th>
                         <th className="px-8 py-4">Task ERT</th>
@@ -1106,9 +1086,9 @@ export default function App() {
                                 initial={{ opacity: 0, x: -10 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
-                                className="hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:bg-slate-800/50 dark:bg-slate-950 transition-colors"
+                                className="hover:bg-[#f8fafc] transition-colors"
                               >
-                                <td className="px-8 py-4 text-slate-500 dark:text-slate-400 font-medium">
+                                <td className="px-8 py-4 text-[#64748b] font-medium">
                                   {tasks.length - index}
                                 </td>
                                 <td className="px-8 py-4">
@@ -1116,16 +1096,16 @@ export default function App() {
                                     {task.category || 'General'}
                                   </span>
                                 </td>
-                                <td className="px-8 py-4 text-slate-800 dark:text-slate-100 font-semibold">
+                                <td className="px-8 py-4 text-[#1e293b] font-semibold">
                                   {Math.floor(task.ert / 60)}h {Math.round(task.ert % 60)}m
                                 </td>
-                                <td className="px-8 py-4 text-slate-800 dark:text-slate-100 font-medium opacity-70">
+                                <td className="px-8 py-4 text-[#1e293b] font-medium opacity-70">
                                   {Math.floor(runningTotal / 60)}h {Math.round(runningTotal % 60)}m
                                 </td>
                                 <td className="px-8 py-4 text-right">
                                   <button 
                                     onClick={() => removeTask(task.id)}
-                                    className="p-2 text-slate-400 dark:text-slate-500 hover:text-[#ef4444] rounded-lg transition-all"
+                                    className="p-2 text-[#94a3b8] hover:text-[#ef4444] rounded-lg transition-all"
                                   >
                                     <X size={20} />
                                   </button>
@@ -1137,7 +1117,7 @@ export default function App() {
                       </AnimatePresence>
                       {tasks.length === 0 && (
                         <tr>
-                          <td colSpan={4} className="px-8 py-16 text-center text-slate-400 dark:text-slate-500 italic">
+                          <td colSpan={4} className="px-8 py-16 text-center text-[#94a3b8] italic">
                             No tasks logged for today.
                           </td>
                         </tr>
@@ -1154,10 +1134,10 @@ export default function App() {
             {selectedHistoryDate ? (
               /* Detailed Day View in History */
               <div className="flex-1 flex flex-col">
-                <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-6 md:px-10 flex justify-between items-center">
+                <div className="bg-white border-b border-[#e2e8f0] px-6 py-6 md:px-10 flex justify-between items-center">
                   <button 
                     onClick={() => setSelectedHistoryDate(null)}
-                    className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-[#6366f1] font-bold text-sm transition-colors"
+                    className="flex items-center gap-2 text-[#64748b] hover:text-[#6366f1] font-bold text-sm transition-colors"
                   >
                     <ArrowLeft size={16} />
                     Back to List
@@ -1165,7 +1145,7 @@ export default function App() {
                   <div className="flex gap-2">
                     <button 
                       onClick={() => copyLogForDate(selectedHistoryDate)}
-                      className="p-2.5 bg-slate-100 text-slate-600 dark:text-slate-400 rounded-lg hover:bg-slate-200 transition-all"
+                      className="p-2.5 bg-slate-100 text-[#475569] rounded-lg hover:bg-slate-200 transition-all"
                     >
                       <Copy size={18} />
                     </button>
@@ -1179,17 +1159,17 @@ export default function App() {
                 </div>
 
                 <div className="px-6 py-8 md:px-10">
-                  <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50 mb-6">{formatDateLabel(selectedHistoryDate)}</h2>
+                  <h2 className="text-2xl font-bold text-[#0f172a] mb-6">{formatDateLabel(selectedHistoryDate)}</h2>
                   
                   {/* Stats snippet for history day */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Tasks</div>
-                      <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{(logs[selectedHistoryDate] || []).length}</div>
+                    <div className="bg-white p-4 rounded-xl border border-[#e2e8f0] shadow-sm">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#64748b] mb-1">Tasks</div>
+                      <div className="text-2xl font-bold text-[#1e293b]">{(logs[selectedHistoryDate] || []).length}</div>
                     </div>
-                    <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Total ERT (Day)</div>
-                      <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                    <div className="bg-white p-4 rounded-xl border border-[#e2e8f0] shadow-sm">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#64748b] mb-1">Total ERT (Day)</div>
+                      <div className="text-2xl font-bold text-[#1e293b]">
                         {(() => {
                           const totalMins = (logs[selectedHistoryDate] || []).reduce((acc, t) => acc + t.ert, 0);
                           const h = Math.floor(totalMins / 60);
@@ -1215,10 +1195,10 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                  <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden shadow-sm">
                     <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-50 dark:bg-slate-800/50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
-                        <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-500 dark:text-slate-400">
+                      <thead className="bg-[#f8fafc] border-b border-[#e2e8f0]">
+                        <tr className="text-[10px] uppercase font-bold tracking-widest text-[#64748b]">
                           <th className="px-8 py-4 w-24">#</th>
                           <th className="px-8 py-4">Category</th>
                           <th className="px-8 py-4">Task ERT</th>
@@ -1227,20 +1207,20 @@ export default function App() {
                       </thead>
                       <tbody className="divide-y divide-[#f1f5f9]">
                         {(logs[selectedHistoryDate] || []).map((task, index) => (
-                          <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:bg-slate-800/50 dark:bg-slate-950 transition-colors">
-                            <td className="px-8 py-4 text-slate-500 dark:text-slate-400 font-medium">{index + 1}</td>
+                          <tr key={task.id} className="hover:bg-[#f8fafc] transition-colors">
+                            <td className="px-8 py-4 text-[#64748b] font-medium">{index + 1}</td>
                             <td className="px-8 py-4">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1] bg-[#6366f1]/10 px-2 py-1 rounded-md">
                                 {task.category || 'General'}
                               </span>
                             </td>
-                            <td className="px-8 py-4 text-slate-800 dark:text-slate-100 font-semibold">
+                            <td className="px-8 py-4 text-[#1e293b] font-semibold">
                               {Math.floor(task.ert / 60)}h {Math.round(task.ert % 60)}m
                             </td>
                             <td className="px-8 py-4 text-right">
                               <button 
                                 onClick={() => removeTask(task.id, selectedHistoryDate)}
-                                className="p-2 text-slate-400 dark:text-slate-500 hover:text-[#ef4444] rounded-lg transition-all"
+                                className="p-2 text-[#94a3b8] hover:text-[#ef4444] rounded-lg transition-all"
                               >
                                 <X size={18} />
                               </button>
@@ -1263,8 +1243,8 @@ export default function App() {
                           <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain" />
                         </div>
                         <div>
-                          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">Activity History</h2>
-                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Review your historical task logs</p>
+                          <h2 className="text-2xl font-bold text-[#0f172a] tracking-tight">Activity History</h2>
+                          <p className="text-sm text-[#64748b] mt-1">Review your historical task logs</p>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -1283,7 +1263,7 @@ export default function App() {
                         </button>
                         <button 
                           onClick={() => setShowImportModal(true)}
-                          className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 dark:text-slate-400 hover:bg-[#6366f1] hover:text-white rounded-lg text-xs font-bold transition-all"
+                          className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-[#475569] hover:bg-[#6366f1] hover:text-white rounded-lg text-xs font-bold transition-all"
                         >
                           <Upload size={14} />
                           Bulk Import
@@ -1292,13 +1272,13 @@ export default function App() {
                     </div>
                   </div>
                   
-                  <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-3 bg-white p-3 rounded-xl border border-[#e2e8f0] shadow-sm">
                     <div className="flex items-center gap-2">
-                      <ArrowUpDown size={14} className="text-slate-500 dark:text-slate-400" />
+                      <ArrowUpDown size={14} className="text-[#64748b]" />
                       <select
                         value={sortOption}
                         onChange={(e) => setSortOption(e.target.value as any)}
-                        className="text-xs font-semibold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1] text-slate-600 dark:text-slate-400"
+                        className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1] text-[#475569]"
                       >
                         <option value="date-desc">Newest First</option>
                         <option value="date-asc">Oldest First</option>
@@ -1308,7 +1288,7 @@ export default function App() {
                     </div>
                     <div className="h-4 w-[1px] bg-slate-200 hidden sm:block"></div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">From</span>
+                      <span className="text-[10px] font-bold uppercase text-[#64748b]">From</span>
                       <input 
                         type="date" 
                         value={startDate}
@@ -1316,11 +1296,11 @@ export default function App() {
                           setStartDate(e.target.value);
                           setIsFilterActive(true);
                         }}
-                        className="text-xs font-semibold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1]"
+                        className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1]"
                       />
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">To</span>
+                      <span className="text-[10px] font-bold uppercase text-[#64748b]">To</span>
                       <input 
                         type="date" 
                         value={endDate}
@@ -1328,7 +1308,7 @@ export default function App() {
                           setEndDate(e.target.value);
                           setIsFilterActive(true);
                         }}
-                        className="text-xs font-semibold bg-slate-50 dark:bg-slate-800/50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1]"
+                        className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-md px-2 py-1 outline-none focus:border-[#6366f1]"
                       />
                     </div>
                     {isFilterActive && (
@@ -1367,11 +1347,11 @@ export default function App() {
 
                     if (filteredKeys.length === 0) {
                       return (
-                        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed">
-                          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400 dark:text-slate-500">
+                        <div className="text-center py-20 bg-white rounded-2xl border border-[#e2e8f0] border-dashed">
+                          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-[#94a3b8]">
                             <History size={32} />
                           </div>
-                          <p className="text-slate-500 dark:text-slate-400 font-medium">
+                          <p className="text-[#64748b] font-medium">
                             {isFilterActive ? "No records found in this range." : "No logs found yet."}
                           </p>
                           {isFilterActive ? (
@@ -1400,16 +1380,16 @@ export default function App() {
                         <button 
                           key={dateKey}
                           onClick={() => setSelectedHistoryDate(dateKey)}
-                          className="w-full text-left bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:border-[#6366f1] transition-all group flex justify-between items-center"
+                          className="w-full text-left bg-white p-5 rounded-xl border border-[#e2e8f0] shadow-sm hover:border-[#6366f1] transition-all group flex justify-between items-center"
                         >
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{formatDateLabel(dateKey)}</span>
+                              <span className="text-sm font-bold text-[#1e293b]">{formatDateLabel(dateKey)}</span>
                               {dateKey === getTodayKey() && (
                                 <span className="text-[10px] bg-[#6366f1]/10 text-[#6366f1] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Today</span>
                               )}
                             </div>
-                            <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                            <div className="flex items-center gap-4 text-xs text-[#64748b] font-medium">
                               <span className="flex items-center gap-1"><CheckCircle2 size={12} /> {dayTasks.length} tasks</span>
                               <span className="flex items-center gap-1"><Clock size={12} /> {stats.hours}h {stats.mins}m logged</span>
                             </div>
@@ -1421,7 +1401,7 @@ export default function App() {
                               </div>
                               <span className="text-[9px] font-bold text-slate-400">{Math.round(stats.progressPercent)}% Goal</span>
                             </div>
-                            <ChevronRight size={20} className="text-slate-400 dark:text-slate-500 group-hover:text-[#6366f1] transition-colors" />
+                            <ChevronRight size={20} className="text-[#94a3b8] group-hover:text-[#6366f1] transition-colors" />
                           </div>
                         </button>
                       );
@@ -1456,7 +1436,7 @@ export default function App() {
                         <div key={monthKey} className="flex flex-col gap-2">
                           <button 
                             onClick={() => setExpandedMonths(prev => ({ ...prev, [monthKey]: !isExpanded }))}
-                            className="flex items-center justify-between px-2 py-3 border-b border-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:bg-slate-800/50 transition-colors w-full text-left"
+                            className="flex items-center justify-between px-2 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors w-full text-left"
                           >
                             <div className="flex items-center gap-3">
                               <span className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
@@ -1490,13 +1470,13 @@ export default function App() {
       
       {/* Floating Tip - Only on tracker view */}
       {view === 'tracker' && (
-        <div className="fixed bottom-6 right-6 hidden md:flex items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 py-3 rounded-2xl shadow-xl">
+        <div className="fixed bottom-6 right-6 hidden md:flex items-center gap-3 bg-white border border-[#e2e8f0] px-5 py-3 rounded-2xl shadow-xl">
           <div className="w-10 h-10 bg-[#6366f1]/10 rounded-xl flex items-center justify-center text-[#6366f1]">
             <Target size={20} />
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Quick Hint</span>
-            <span className="text-xs font-semibold text-slate-800 dark:text-slate-100">Type ERT & Hit Enter</span>
+            <span className="text-[10px] font-bold text-[#64748b] uppercase tracking-wider">Quick Hint</span>
+            <span className="text-xs font-semibold text-[#1e293b]">Type ERT & Hit Enter</span>
           </div>
         </div>
       )}
@@ -1511,14 +1491,14 @@ export default function App() {
             className="fixed bottom-8 left-1/2 z-[60] flex items-center gap-4 bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl min-w-[320px] justify-between"
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white dark:bg-slate-900/10 rounded-full flex items-center justify-center text-amber-400">
+              <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-amber-400">
                 <RotateCcw size={16} />
               </div>
               <span className="text-sm font-medium">Task removed</span>
             </div>
             <button 
               onClick={undoDelete}
-              className="text-xs font-bold uppercase tracking-widest text-[#6366f1] hover:text-[#818cf8] transition-colors bg-white dark:bg-slate-900/10 px-4 py-2 rounded-lg"
+              className="text-xs font-bold uppercase tracking-widest text-[#6366f1] hover:text-[#818cf8] transition-colors bg-white/10 px-4 py-2 rounded-lg"
             >
               Undo
             </button>
@@ -1541,7 +1521,7 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+              className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             >
               <div className="bg-[#10b981] p-6 text-white flex justify-between items-center">
                 <div>
@@ -1550,7 +1530,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={() => setShowSubmitPaymentModal(false)}
-                  className="p-2 hover:bg-white dark:bg-slate-900/10 rounded-full transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -1560,13 +1540,13 @@ export default function App() {
                 <div className="flex bg-slate-100 p-1 rounded-xl">
                   <button 
                     onClick={() => setSubmissionPeriod('current')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${submissionPeriod === 'current' ? 'bg-white dark:bg-slate-900 shadow-sm text-[#10b981]' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${submissionPeriod === 'current' ? 'bg-white shadow-sm text-[#10b981]' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Current Period
                   </button>
                   <button 
                     onClick={() => setSubmissionPeriod('previous')}
-                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${submissionPeriod === 'previous' ? 'bg-white dark:bg-slate-900 shadow-sm text-[#10b981]' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${submissionPeriod === 'previous' ? 'bg-white shadow-sm text-[#10b981]' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     Previous Period
                   </button>
@@ -1593,21 +1573,21 @@ export default function App() {
                   );
                 })()}
 
-                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 rounded-xl p-6 font-mono text-sm whitespace-pre-wrap text-slate-700 relative group">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 font-mono text-sm whitespace-pre-wrap text-slate-700 relative group">
                   {generatePaymentReport()}
                   <button 
                     onClick={copyPaymentReport}
-                    className="absolute top-4 right-4 p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 text-slate-400 hover:text-[#10b981] hover:border-[#10b981] shadow-sm opacity-0 group-hover:opacity-100 transition-all"
+                    className="absolute top-4 right-4 p-2 bg-white rounded-lg border border-slate-200 text-slate-400 hover:text-[#10b981] hover:border-[#10b981] shadow-sm opacity-0 group-hover:opacity-100 transition-all"
                   >
                     <Copy size={16} />
                   </button>
                 </div>
               </div>
               
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 flex gap-3">
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
                 <button 
                   onClick={() => setShowSubmitPaymentModal(false)}
-                  className="flex-1 py-3 bg-white dark:bg-slate-900 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-all text-sm"
+                  className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-all text-sm"
                 >
                   Close
                 </button>
@@ -1642,7 +1622,7 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+              className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             >
               <div className="bg-[#6366f1] p-6 text-white flex justify-between items-center">
                 <div>
@@ -1654,7 +1634,7 @@ export default function App() {
                     setShowCategoryModal(false);
                     setEditingCategoryIndex(null);
                   }}
-                  className="p-2 hover:bg-white dark:bg-slate-900/10 rounded-full transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -1682,7 +1662,7 @@ export default function App() {
 
                 <div className="space-y-2">
                   {categories.map((cat, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 group">
+                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group">
                       {editingCategoryIndex === idx ? (
                         <div className="flex-1 flex gap-2">
                           <input 
@@ -1691,7 +1671,7 @@ export default function App() {
                             value={editingCategoryValue}
                             onChange={(e) => setEditingCategoryValue(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && saveEditedCategory()}
-                            className="flex-1 bg-white dark:bg-slate-900 border border-[#6366f1] rounded-lg px-3 py-1 text-sm outline-none"
+                            className="flex-1 bg-white border border-[#6366f1] rounded-lg px-3 py-1 text-sm outline-none"
                           />
                           <button 
                             onClick={saveEditedCategory}
@@ -1706,13 +1686,13 @@ export default function App() {
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
                               onClick={() => startEditingCategory(idx)}
-                              className="p-1.5 text-slate-400 hover:text-[#6366f1] hover:bg-white dark:bg-slate-900 rounded-lg"
+                              className="p-1.5 text-slate-400 hover:text-[#6366f1] hover:bg-white rounded-lg"
                             >
                               <Edit2 size={16} />
                             </button>
                             <button 
                               onClick={() => deleteCategory(cat)}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-white dark:bg-slate-900 rounded-lg"
+                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-white rounded-lg"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -1724,10 +1704,10 @@ export default function App() {
                 </div>
               </div>
               
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100">
+              <div className="p-6 bg-slate-50 border-t border-slate-100">
                 <button 
                   onClick={() => setShowCategoryModal(false)}
-                  className="w-full py-3 bg-white dark:bg-slate-900 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-all text-sm"
+                  className="w-full py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-all text-sm"
                 >
                   Done
                 </button>
@@ -1752,7 +1732,7 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden p-8"
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden p-8"
             >
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-slate-900">Account Settings</h3>
@@ -1774,7 +1754,7 @@ export default function App() {
                     step="0.5"
                     value={tempGoal}
                     onChange={(e) => setTempGoal(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 rounded-xl px-4 py-2 text-lg font-bold text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all"
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-2 text-lg font-bold text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all"
                   />
                 </div>
 
@@ -1787,7 +1767,7 @@ export default function App() {
                       type="number"
                       value={tempBaseRate}
                       onChange={(e) => setTempBaseRate(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 rounded-xl px-4 py-2 text-md font-bold text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all"
+                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-2 text-md font-bold text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all"
                     />
                   </div>
                   <div>
@@ -1798,7 +1778,7 @@ export default function App() {
                       type="number"
                       value={tempPremiumRate}
                       onChange={(e) => setTempPremiumRate(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 rounded-xl px-4 py-2 text-md font-bold text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all"
+                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-2 text-md font-bold text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all"
                     />
                   </div>
                 </div>
@@ -1839,7 +1819,7 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
               <div className="bg-[#6366f1] p-6 text-white flex justify-between items-center">
                 <div>
@@ -1848,7 +1828,7 @@ export default function App() {
                 </div>
                 <button 
                   onClick={() => setShowImportModal(false)}
-                  className="p-2 hover:bg-white dark:bg-slate-900/10 rounded-full transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -1874,11 +1854,11 @@ Example:
 3 6 9 9 3 3 3"
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
-                  className="w-full h-80 bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 rounded-xl px-5 py-4 text-sm font-mono text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all resize-none"
+                  className="w-full h-80 bg-slate-50 border-2 border-slate-200 rounded-xl px-5 py-4 text-sm font-mono text-slate-900 focus:outline-none focus:border-[#6366f1] transition-all resize-none"
                 />
               </div>
 
-              <div className="p-6 border-t border-slate-100 flex gap-3 bg-slate-50 dark:bg-slate-800/50">
+              <div className="p-6 border-t border-slate-100 flex gap-3 bg-slate-50">
                 <button 
                   type="button"
                   onClick={() => setShowImportModal(false)}
