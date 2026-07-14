@@ -27,7 +27,8 @@ import {
   Cloud,
   LogOut,
   LogIn,
-  ArrowUpDown
+  ArrowUpDown,
+  User as UserIcon
 } from 'lucide-react';
 import { Task } from './types';
 import { auth, db, loginWithGoogle, logout } from './firebase';
@@ -792,19 +793,51 @@ export default function App() {
     <div className="min-h-screen bg-[#f1f5f9] text-[#1e293b] font-sans overflow-x-hidden selection:bg-[#6366f1] selection:text-white pb-12">
       <div className="max-w-5xl mx-auto md:my-10 bg-[#f8fafc] md:rounded-2xl md:shadow-2xl overflow-hidden min-h-screen md:min-h-0 flex flex-col">
         {/* Navigation Bar */}
-        <div className="bg-white border-b border-[#e2e8f0] flex px-6 md:px-10">
-          <button 
-            onClick={() => setView('tracker')}
-            className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'tracker' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-[#64748b] hover:text-[#1e293b]'}`}
-          >
-            Tracker
-          </button>
-          <button 
-            onClick={() => setView('history')}
-            className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'history' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-[#64748b] hover:text-[#1e293b]'}`}
-          >
-            History
-          </button>
+        <div className="bg-white border-b border-[#e2e8f0] flex justify-between items-center px-6 md:px-10">
+          <div className="flex">
+            <button 
+              onClick={() => setView('tracker')}
+              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'tracker' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-[#64748b] hover:text-[#1e293b]'}`}
+            >
+              Tracker
+            </button>
+            <button 
+              onClick={() => setView('history')}
+              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'history' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-[#64748b] hover:text-[#1e293b]'}`}
+            >
+              History
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            {user && isSyncing && (
+               <span className="text-xs text-[#94a3b8] flex items-center gap-1 mr-2 hidden sm:flex">
+                  <Cloud size={12} className="animate-pulse" /> Syncing...
+               </span>
+            )}
+            {user ? (
+              <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg p-1 pr-2 shadow-sm">
+                <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shrink-0 border border-slate-200">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserIcon size={14} className="text-slate-400" />
+                  )}
+                </div>
+                <span className="text-xs font-medium text-slate-600 truncate max-w-[120px] hidden sm:block" title={user.email || 'User'}>
+                  {user.email}
+                </span>
+                <div className="w-px h-3 bg-slate-200 mx-1 hidden sm:block"></div>
+                <button onClick={handleSignOut} className="text-slate-400 hover:text-red-500 transition-colors px-1" title="Sign Out">
+                  <LogOut size={16} />
+                </button>
+              </div>
+            ) : (
+              <button onClick={handleSignIn} className="text-xs text-[#10b981] hover:underline flex items-center gap-1 font-medium bg-[#10b981]/10 px-3 py-1.5 rounded-md transition-colors hover:bg-[#10b981]/20">
+                <LogIn size={14} />
+                Sign In to Sync
+              </button>
+            )}
+          </div>
         </div>
 
         {view === 'tracker' ? (
@@ -826,26 +859,6 @@ export default function App() {
                       <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
                       Auto-backup: {lastBackup}
                     </p>
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="flex items-center gap-2">
-                         {user ? (
-                           <button onClick={handleSignOut} className="text-xs text-[#6366f1] hover:underline flex items-center gap-1 font-medium bg-[#6366f1]/10 px-2 py-0.5 rounded-md">
-                             <LogOut size={12} />
-                             Sign Out
-                           </button>
-                         ) : (
-                           <button onClick={handleSignIn} className="text-xs text-[#10b981] hover:underline flex items-center gap-1 font-medium bg-[#10b981]/10 px-2 py-0.5 rounded-md">
-                             <LogIn size={12} />
-                             Sign In to Sync
-                           </button>
-                         )}
-                         {user && isSyncing && (
-                            <span className="text-xs text-[#94a3b8] flex items-center gap-1">
-                               <Cloud size={12} className="animate-pulse" /> Syncing...
-                            </span>
-                         )}
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
