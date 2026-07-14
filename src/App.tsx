@@ -105,14 +105,15 @@ export default function App() {
     const saved = localStorage.getItem('tryrating_daily_goal') || localStorage.getItem('peroptyx_daily_goal');
     if (saved) {
       const val = parseFloat(saved);
-      // Migration: if the saved value is likely minutes (e.g. > 24), convert to hours
-      if (val > 24) {
-        const hours = val / 60;
-        localStorage.setItem('tryrating_daily_goal', hours.toString());
-        return hours;
+      if (!isNaN(val)) {
+        if (val > 24) {
+          const hours = val / 60;
+          localStorage.setItem('tryrating_daily_goal', hours.toString());
+          return hours;
+        }
+        localStorage.setItem('tryrating_daily_goal', val.toString());
+        return val;
       }
-      localStorage.setItem('tryrating_daily_goal', val.toString());
-      return val;
     }
     return 2; // default 2 hours
   });
@@ -133,11 +134,13 @@ export default function App() {
   });
   const [baseRate, setBaseRate] = useState<number>(() => {
     const saved = localStorage.getItem('tryrating_base_rate');
-    return saved ? parseInt(saved, 10) : 2000;
+    const val = saved ? parseInt(saved, 10) : 2000;
+    return isNaN(val) ? 2000 : val;
   });
   const [premiumRate, setPremiumRate] = useState<number>(() => {
     const saved = localStorage.getItem('tryrating_premium_rate');
-    return saved ? parseInt(saved, 10) : 2500;
+    const val = saved ? parseInt(saved, 10) : 2500;
+    return isNaN(val) ? 2500 : val;
   });
   const [tempBaseRate, setTempBaseRate] = useState(baseRate.toString());
   const [tempPremiumRate, setTempPremiumRate] = useState(premiumRate.toString());
