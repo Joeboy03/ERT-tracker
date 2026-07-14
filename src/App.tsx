@@ -163,6 +163,7 @@ export default function App() {
   const [lastDeletedTask, setLastDeletedTask] = useState<{task: Task, dateKey: string} | null>(null);
   const [showUndo, setShowUndo] = useState(false);
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
+  const isIframe = window.self !== window.top;
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle');
   const [lastBackup, setLastBackup] = useState<string>(new Date().toLocaleTimeString());
   const inputRef = useRef<HTMLInputElement>(null);
@@ -223,7 +224,7 @@ export default function App() {
                      await setDoc(doc(db, 'users', u.uid, 'logs', date), {
                          userId: u.uid,
                          dateKey: date,
-                         tasks: mergedLogs[date]
+                         tasks: JSON.parse(JSON.stringify(mergedLogs[date]))
                      });
                  } catch (e) {
                      console.error("Error syncing local log to remote:", e);
@@ -296,10 +297,11 @@ export default function App() {
   const syncDateLogToFirebase = async (dateKey: string, dayTasks: Task[]) => {
     if (!user || isInitializingRef.current) return;
     try {
+      const safeTasks = JSON.parse(JSON.stringify(dayTasks));
       await setDoc(doc(db, 'users', user.uid, 'logs', dateKey), {
         userId: user.uid,
         dateKey,
-        tasks: dayTasks
+        tasks: safeTasks
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/logs/${dateKey}`);
@@ -839,6 +841,12 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {isIframe && (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-700 px-6 py-2 text-xs flex justify-center text-center font-medium">
+            Note: You are viewing this app in a preview. To stay signed in after refreshing, please open the app in a new tab using the icon in the top right.
+          </div>
+        )}
 
         {view === 'tracker' ? (
           <>
