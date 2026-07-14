@@ -707,7 +707,13 @@ export default function App() {
     let report = `Period: ${startStr} - ${endStr}\n`;
     report += `------------------------------\n`;
     report += `Total ERT: ${h}h ${m}m (${hoursTotal.toFixed(2)} hours)\n`;
+    if (showEarnings) {
+      report += `Estimated Earnings: ₦${stats.earnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n`;
+    }
     report += `------------------------------\n`;
+    
+    const categoryTotals: Record<string, number> = {};
+
     report += `Daily Breakdown:\n`;
     
     const d = new Date(stats.startDate);
@@ -715,6 +721,13 @@ export default function App() {
       const key = formatDateToKey(d);
       const dayTasks = logs[key] || [];
       const totalMins = dayTasks.reduce((acc, t) => acc + t.ert, 0);
+      
+      // Calculate category totals
+      dayTasks.forEach(t => {
+        const cat = t.category || 'Uncategorized';
+        categoryTotals[cat] = (categoryTotals[cat] || 0) + t.ert;
+      });
+
       if (totalMins > 0) {
         const dh = Math.floor(totalMins / 60);
         const dm = Math.round(totalMins % 60);
@@ -723,6 +736,21 @@ export default function App() {
       d.setDate(d.getDate() + 1);
     }
     
+    if (Object.keys(categoryTotals).length > 0) {
+      report += `\n------------------------------\n`;
+      report += `Category Breakdown:\n`;
+      
+      const sortedCategories = Object.keys(categoryTotals).sort((a, b) => categoryTotals[b] - categoryTotals[a]);
+      sortedCategories.forEach(cat => {
+        const catMins = categoryTotals[cat];
+        if (catMins > 0) {
+          const ch = Math.floor(catMins / 60);
+          const cm = Math.round(catMins % 60);
+          report += `${cat}: ${ch}h ${cm}m\n`;
+        }
+      });
+    }
+
     return report;
   };
 
@@ -1483,7 +1511,6 @@ export default function App() {
                   <X size={24} />
                 </button>
               </div>
-
               <div className="p-6 flex-1 overflow-y-auto max-h-[60vh] space-y-6">
                 {/* Period Selector */}
                 <div className="flex bg-slate-100 p-1 rounded-xl">
@@ -1501,8 +1528,35 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 font-mono text-sm whitespace-pre-wrap text-slate-700">
+                {/* Visual Summary */}
+                {(() => {
+                  const stats = getBiWeeklyStats(submissionPeriod);
+                  const h = Math.floor(stats.hoursTotal);
+                  const m = Math.round((stats.hoursTotal % 1) * 60);
+                  return (
+                    <div className={`grid gap-4 ${showEarnings ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                      <div className="bg-[#10b981]/10 border border-[#10b981]/20 rounded-xl p-4 flex flex-col justify-center items-center">
+                        <div className="text-[#10b981] text-xs font-bold uppercase tracking-wider mb-1">Total Time</div>
+                        <div className="text-2xl font-bold text-[#065f46]">{h}h {m}m</div>
+                      </div>
+                      {showEarnings && (
+                        <div className="bg-[#6366f1]/10 border border-[#6366f1]/20 rounded-xl p-4 flex flex-col justify-center items-center">
+                          <div className="text-[#6366f1] text-xs font-bold uppercase tracking-wider mb-1">Estimated Earnings</div>
+                          <div className="text-2xl font-bold text-[#3730a3]">₦{stats.earnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 font-mono text-sm whitespace-pre-wrap text-slate-700 relative group">
                   {generatePaymentReport()}
+                  <button 
+                    onClick={copyPaymentReport}
+                    className="absolute top-4 right-4 p-2 bg-white rounded-lg border border-slate-200 text-slate-400 hover:text-[#10b981] hover:border-[#10b981] shadow-sm opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <Copy size={16} />
+                  </button>
                 </div>
               </div>
               
