@@ -24,7 +24,7 @@ import {
   Save,
   Eye,
   EyeOff,
-  Cloud,
+  Cloud, Download,
   LogOut, Sun, Moon,
   LogIn,
   ArrowUpDown,
@@ -127,6 +127,27 @@ export default function App() {
     const saved = localStorage.getItem('tryrating_categories');
     return saved ? JSON.parse(saved) : ['General', 'Search', 'Image', 'Mapping', 'Side-by-Side', 'Other'];
   });
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
+
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showEarnings, setShowEarnings] = useState<boolean>(() => {
     const saved = localStorage.getItem('tryrating_show_earnings');
@@ -919,6 +940,16 @@ export default function App() {
               )}
               
               <div className="flex gap-3 w-full sm:w-auto items-center">
+                {isInstallable && (
+                <button 
+                  onClick={handleInstallClick}
+                  className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[#10b981] hover:bg-[#10b981]/10 transition-all flex items-center gap-2 font-bold text-xs"
+                  title="Install App"
+                >
+                  <Download size={18} />
+                  <span className="hidden sm:inline">Install App</span>
+                </button>
+              )}
                 <button 
                   onClick={() => {
                     setTempGoal(dailyGoal.toString());
