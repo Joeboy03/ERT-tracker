@@ -37,8 +37,13 @@ import {
   Lock,
   Unlock,
   Info,
-  ChevronLeft
+  ChevronLeft,
+  Volume2,
+  VolumeX,
+  Bell,
+  BellRing
 } from 'lucide-react';
+import { soundService } from './utils/soundService';
 import { Task } from './types';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
@@ -218,6 +223,33 @@ export default function App() {
   const [tempWeeklyWindowType, setTempWeeklyWindowType] = useState<'calendar' | 'rolling'>(weeklyWindowType);
   const [tempLimitEnforcement, setTempLimitEnforcement] = useState<'confirm' | 'block' | 'warn'>(limitEnforcement);
 
+  // Audio Chimes & Threshold Alert States
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('tryrating_sound_enabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [soundVolume, setSoundVolume] = useState<number>(() => {
+    const saved = localStorage.getItem('tryrating_sound_volume');
+    const val = saved ? parseFloat(saved) : 0.7;
+    return isNaN(val) ? 0.7 : Math.max(0, Math.min(1, val));
+  });
+  const [warningThresholdHours, setWarningThresholdHours] = useState<number>(() => {
+    const saved = localStorage.getItem('tryrating_warning_threshold');
+    const val = saved ? parseFloat(saved) : 18.5;
+    return isNaN(val) ? 18.5 : Math.max(1, Math.min(24, val));
+  });
+  const [goalChimeEnabled, setGoalChimeEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('tryrating_goal_chime_enabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  const [tempSoundEnabled, setTempSoundEnabled] = useState(soundEnabled);
+  const [tempSoundVolume, setTempSoundVolume] = useState(soundVolume);
+  const [tempWarningThresholdHours, setTempWarningThresholdHours] = useState(warningThresholdHours);
+  const [tempGoalChimeEnabled, setTempGoalChimeEnabled] = useState(goalChimeEnabled);
+
+  const [alertToast, setAlertToast] = useState<{ type: 'warning' | 'cap' | 'goal'; message: string } | null>(null);
+
   const [pendingOverLimitTask, setPendingOverLimitTask] = useState<{ ert: number; category: string; projectedHours: number; currentHours: number } | null>(null);
   const [showStrictBlockModal, setShowStrictBlockModal] = useState<boolean>(false);
   const [startDate, setStartDate] = useState(() => {
@@ -275,6 +307,10 @@ export default function App() {
             if (data.weeklyLimit) setWeeklyLimit(data.weeklyLimit);
             if (data.weeklyWindowType) setWeeklyWindowType(data.weeklyWindowType);
             if (data.limitEnforcement) setLimitEnforcement(data.limitEnforcement);
+            if (data.soundEnabled !== undefined) setSoundEnabled(data.soundEnabled);
+            if (data.soundVolume !== undefined) setSoundVolume(data.soundVolume);
+            if (data.warningThresholdHours !== undefined) setWarningThresholdHours(data.warningThresholdHours);
+            if (data.goalChimeEnabled !== undefined) setGoalChimeEnabled(data.goalChimeEnabled);
           } else {
             // First time logging in, push local settings to Firebase
             await setDoc(doc(db, 'users', u.uid), {
@@ -285,7 +321,11 @@ export default function App() {
               showEarnings,
               weeklyLimit,
               weeklyWindowType,
-              limitEnforcement
+              limitEnforcement,
+              soundEnabled,
+              soundVolume,
+              warningThresholdHours,
+              goalChimeEnabled
             });
           }
 
@@ -380,7 +420,11 @@ export default function App() {
         showEarnings,
         weeklyLimit,
         weeklyWindowType,
-        limitEnforcement
+        limitEnforcement,
+        soundEnabled,
+        soundVolume,
+        warningThresholdHours,
+        goalChimeEnabled
       }, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
@@ -470,6 +514,25 @@ export default function App() {
     localStorage.setItem('tryrating_limit_enforcement', limitEnforcement);
     syncSettingsToFirebase();
   }, [limitEnforcement]);
+
+  useEffect(() => {
+    soundService.setMuted(!soundEnabled);
+    soundService.setVolume(soundVolume);
+    localStorage.setItem('tryrating_sound_enabled', JSON.stringify(soundEnabled));
+    localStorage.setItem('tryrating_sound_volume', soundVolume.toString());
+    localStorage.setItem('tryrating_warning_threshold', warningThresholdHours.toString());
+    localStorage.setItem('tryrating_goal_chime_enabled', JSON.stringify(goalChimeEnabled));
+    syncSettingsToFirebase();
+  }, [soundEnabled, soundVolume, warningThresholdHours, goalChimeEnabled]);
+
+  useEffect(() => {
+    if (alertToast) {
+      const timer = setTimeout(() => {
+        setAlertToast(null);
+      }, 5500);
+      return () => clearTimeout(timer);
+    }
+  }, [alertToast]);
 
   const addCategory = () => {
     if (newCategoryName.trim() && !categories.includes(newCategoryName.trim())) {
@@ -625,7 +688,7 @@ export default function App() {
     const remainingMinutes = Math.max(0, weeklyLimit * 60 - totalMinutes);
     const remainingHours = remainingMinutes / 60;
     const isCapReached = totalHours >= weeklyLimit;
-    const isNearCap = !isCapReached && totalHours >= Math.max(0, weeklyLimit - 2);
+    const isNearCap = !isCapReached && totalHours >= warningThresholdHours;
     const percentUsed = Math.min(100, (totalMinutes / (weeklyLimit * 60)) * 100);
     const excessHours = Math.max(0, totalHours - weeklyLimit);
 
@@ -644,11 +707,17 @@ export default function App() {
       percentUsed,
       excessHours,
       weeklyLimit,
+      warningThresholdHours,
       type
     };
   };
 
   const commitTask = (ert: number, category: string) => {
+    // Check baseline stats before committing
+    const priorWeekly = getWeeklyWindowStats(currentDateKey, weeklyWindowType);
+    const priorWeeklyHours = priorWeekly.totalHours;
+    const priorDailyMins = (logs[currentDateKey] || []).reduce((acc, t) => acc + t.ert, 0);
+
     const newTask: Task = {
       id: Math.random().toString(36).substr(2, 9),
       ert,
@@ -664,6 +733,40 @@ export default function App() {
     setInputValue('');
     setPendingOverLimitTask(null);
     inputRef.current?.focus();
+
+    // Trigger Audio Chimes & Visual Alerts on threshold crossing
+    if (soundEnabled) {
+      const newWeeklyHours = priorWeeklyHours + (ert / 60);
+      const newDailyMins = priorDailyMins + ert;
+
+      // 1. Cap Reached Chime (20.0h)
+      if (priorWeeklyHours < weeklyLimit && newWeeklyHours >= weeklyLimit) {
+        soundService.playCapReachedChime();
+        setAlertToast({
+          type: 'cap',
+          message: `20h Work Limit reached! Total in 7-day window: ${newWeeklyHours.toFixed(1)}h. Rating paused.`
+        });
+      }
+      // 2. Warning Chime (Approaching weekly limit threshold, e.g. 18.5h)
+      else if (priorWeeklyHours < warningThresholdHours && newWeeklyHours >= warningThresholdHours && newWeeklyHours < weeklyLimit) {
+        soundService.playWarningChime();
+        const remHours = Math.max(0, weeklyLimit - newWeeklyHours);
+        const remM = Math.round((remHours % 1) * 60);
+        const remH = Math.floor(remHours);
+        setAlertToast({
+          type: 'warning',
+          message: `Approaching 20h limit: ${remH}h ${remM}m remaining in this 7-day window.`
+        });
+      }
+      // 3. Daily Target Completed Chime
+      else if (goalChimeEnabled && (priorDailyMins < dailyGoal * 60) && (newDailyMins >= dailyGoal * 60)) {
+        soundService.playDailyGoalChime();
+        setAlertToast({
+          type: 'goal',
+          message: `Daily goal achieved! You reached your ${dailyGoal}h target for today.`
+        });
+      }
+    }
   };
 
   const addTask = (e?: FormEvent) => {
@@ -975,6 +1078,10 @@ export default function App() {
     setTempLimitEnforcement(limitEnforcement);
     setTempBaseRate(baseRate.toString());
     setTempPremiumRate(premiumRate.toString());
+    setTempSoundEnabled(soundEnabled);
+    setTempSoundVolume(soundVolume);
+    setTempWarningThresholdHours(warningThresholdHours);
+    setTempGoalChimeEnabled(goalChimeEnabled);
     setShowGoalModal(true);
   };
 
@@ -1070,6 +1177,14 @@ export default function App() {
     if (!isNaN(newPremium) && newPremium > 0) {
       setPremiumRate(newPremium);
     }
+
+    setSoundEnabled(tempSoundEnabled);
+    soundService.setMuted(!tempSoundEnabled);
+    setSoundVolume(tempSoundVolume);
+    soundService.setVolume(tempSoundVolume);
+    setWarningThresholdHours(tempWarningThresholdHours);
+    setGoalChimeEnabled(tempGoalChimeEnabled);
+
     setShowGoalModal(false);
   };
 
@@ -1102,6 +1217,22 @@ export default function App() {
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                const next = !soundEnabled;
+                setSoundEnabled(next);
+                soundService.setMuted(!next);
+                if (next) soundService.playWarningChime();
+              }} 
+              className={`p-1.5 rounded-md transition-colors ${
+                soundEnabled 
+                  ? 'text-[#6366f1] bg-[#6366f1]/10 hover:bg-[#6366f1]/20' 
+                  : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title={soundEnabled ? `Sound Chimes & Alerts Active (${Math.round(soundVolume * 100)}%) - Click to Mute` : "Sound Alerts Muted - Click to Enable"}
+            >
+              {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            </button>
             <button 
               onClick={() => setDarkMode(!darkMode)} 
               className="p-1.5 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -1139,6 +1270,54 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {/* Proactive Chime & Threshold Floating Alert Toast */}
+        <AnimatePresence>
+          {alertToast && (
+            <motion.div
+              initial={{ opacity: 0, y: -25, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -15, scale: 0.95 }}
+              className="fixed top-5 right-5 z-50 max-w-sm pointer-events-auto shadow-2xl"
+            >
+              <div className={`p-4 rounded-2xl border flex items-start gap-3 backdrop-blur-md ${
+                alertToast.type === 'cap' 
+                  ? 'bg-red-950/90 text-red-50 border-red-800/80 shadow-red-950/50' 
+                  : alertToast.type === 'warning'
+                  ? 'bg-amber-950/90 text-amber-50 border-amber-800/80 shadow-amber-950/50'
+                  : 'bg-indigo-950/90 text-indigo-50 border-indigo-800/80 shadow-indigo-950/50'
+              }`}>
+                <div className={`p-1.5 rounded-xl mt-0.5 shrink-0 ${
+                  alertToast.type === 'cap'
+                    ? 'bg-red-500/20 text-red-400'
+                    : alertToast.type === 'warning'
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'bg-indigo-500/20 text-indigo-400'
+                }`}>
+                  {alertToast.type === 'cap' ? (
+                    <ShieldAlert size={18} />
+                  ) : alertToast.type === 'warning' ? (
+                    <BellRing size={18} className="animate-bounce" />
+                  ) : (
+                    <CheckCircle2 size={18} />
+                  )}
+                </div>
+                <div className="flex-1 text-xs">
+                  <div className="font-bold text-sm tracking-tight mb-0.5">
+                    {alertToast.type === 'cap' ? '20h Cap Reached' : alertToast.type === 'warning' ? 'Approaching Limit' : 'Daily Goal Met!'}
+                  </div>
+                  <div className="opacity-90 leading-relaxed">{alertToast.message}</div>
+                </div>
+                <button 
+                  onClick={() => setAlertToast(null)}
+                  className="text-white/60 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {isIframe && (
           <div className="bg-amber-50 border-b border-amber-200 text-amber-700 px-6 py-2 text-xs flex justify-center text-center font-medium">
@@ -1271,9 +1450,44 @@ export default function App() {
                         <strong>20h Work Limit Reached:</strong> You have completed {weeklyStats.totalHours.toFixed(1)}h in this 7-day window. Rating paused until the window resets ({weeklyStats.resetInfo}).
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-red-200/80 dark:bg-red-900/60 text-red-800 dark:text-red-200 rounded-md shrink-0">
-                      Work Paused
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => soundService.playCapReachedChime()}
+                        className="p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors"
+                        title="Replay alert chime"
+                      >
+                        <Volume2 size={13} />
+                      </button>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-red-200/80 dark:bg-red-900/60 text-red-800 dark:text-red-200 rounded-md">
+                        Work Paused
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Approaching 20h Limit Warning Banner */}
+                {weeklyStats.isNearCap && !weeklyStats.isCapReached && (
+                  <div className="mb-3.5 px-3.5 py-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+                      <span>
+                        <strong>Approaching 20h Limit ({weeklyStats.totalHours.toFixed(1)}h logged):</strong> Only {weeklyStats.remainingHours.toFixed(1)}h remaining before reaching your 7-day cap.
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => soundService.playWarningChime()}
+                        className="p-1 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded transition-colors"
+                        title="Replay warning chime"
+                      >
+                        <Volume2 size={13} />
+                      </button>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 rounded-md">
+                        Warning Zone
+                      </span>
+                    </div>
                   </div>
                 )}
 
@@ -2623,6 +2837,120 @@ export default function App() {
                       </div>
                     </label>
                   </div>
+                </div>
+
+                {/* Audio Chimes & Limit Alerts Section */}
+                <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/60 dark:bg-slate-800/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-[#6366f1]/10 text-[#6366f1] dark:bg-[#6366f1]/20">
+                        <Volume2 size={16} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-100">Audio Chimes & Limit Alerts</div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400">Synthesized cues when approaching or hitting 20h limit</div>
+                      </div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={tempSoundEnabled} 
+                        onChange={(e) => setTempSoundEnabled(e.target.checked)} 
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#6366f1]"></div>
+                    </label>
+                  </div>
+
+                  {tempSoundEnabled && (
+                    <div className="space-y-3 pt-2.5 border-t border-slate-200/70 dark:border-slate-700/70">
+                      {/* Warning Threshold Slider */}
+                      <div>
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                          <span>Warning Alert Threshold</span>
+                          <span className="text-[#6366f1] font-extrabold">{tempWarningThresholdHours}h ({Math.max(0, parseFloat(tempWeeklyLimit) - tempWarningThresholdHours).toFixed(1)}h before cap)</span>
+                        </div>
+                        <input 
+                          type="range"
+                          min={Math.max(1, parseFloat(tempWeeklyLimit) - 5)}
+                          max={Math.max(1, parseFloat(tempWeeklyLimit) - 0.5)}
+                          step="0.5"
+                          value={tempWarningThresholdHours}
+                          onChange={(e) => setTempWarningThresholdHours(parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-[#6366f1]"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                          <span>Earlier Warning ({Math.max(1, parseFloat(tempWeeklyLimit) - 5)}h)</span>
+                          <span>Closer to Cap ({Math.max(1, parseFloat(tempWeeklyLimit) - 0.5)}h)</span>
+                        </div>
+                      </div>
+
+                      {/* Master Chime Volume */}
+                      <div>
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                          <span>Chime Volume</span>
+                          <span className="text-slate-600 dark:text-slate-300 font-semibold">{Math.round(tempSoundVolume * 100)}%</span>
+                        </div>
+                        <input 
+                          type="range"
+                          min="0.1"
+                          max="1.0"
+                          step="0.05"
+                          value={tempSoundVolume}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setTempSoundVolume(val);
+                            soundService.setVolume(val);
+                          }}
+                          className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-[#6366f1]"
+                        />
+                      </div>
+
+                      {/* Daily Goal Met Chime Option */}
+                      <label className="flex items-center justify-between cursor-pointer pt-0.5">
+                        <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Daily Target Celebration Chime</span>
+                        <input 
+                          type="checkbox"
+                          checked={tempGoalChimeEnabled}
+                          onChange={(e) => setTempGoalChimeEnabled(e.target.checked)}
+                          className="rounded text-[#6366f1] focus:ring-[#6366f1] h-4 w-4"
+                        />
+                      </label>
+
+                      {/* Test Sound Previews */}
+                      <div className="pt-2">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-1.5">
+                          Preview Sound Cues
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => soundService.playWarningChime()}
+                            className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                          >
+                            <Bell size={13} />
+                            <span>Warning</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => soundService.playCapReachedChime()}
+                            className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[11px] font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                          >
+                            <AlertOctagon size={13} />
+                            <span>Cap 20h</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => soundService.playDailyGoalChime()}
+                            className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[11px] font-semibold text-[#6366f1] dark:text-[#818cf8] hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                          >
+                            <Target size={13} />
+                            <span>Goal Met</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Rates */}
