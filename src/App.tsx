@@ -28,7 +28,16 @@ import {
   LogOut, Sun, Moon,
   LogIn,
   ArrowUpDown,
-  User as UserIcon
+  User as UserIcon,
+  AlertTriangle,
+  AlertOctagon,
+  ShieldAlert,
+  ShieldCheck,
+  Timer,
+  Lock,
+  Unlock,
+  Info,
+  ChevronLeft
 } from 'lucide-react';
 import { Task } from './types';
 import { auth, db, loginWithGoogle, logout } from './firebase';
@@ -189,6 +198,28 @@ export default function App() {
   const [editingCategoryValue, setEditingCategoryValue] = useState('');
 
   const [tempGoal, setTempGoal] = useState(dailyGoal.toString());
+  
+  // 20-Hour Limit in 7-Day Window States
+  const [weeklyLimit, setWeeklyLimit] = useState<number>(() => {
+    const saved = localStorage.getItem('tryrating_weekly_limit');
+    const val = saved ? parseFloat(saved) : 20;
+    return isNaN(val) || val <= 0 ? 20 : val;
+  });
+  const [weeklyWindowType, setWeeklyWindowType] = useState<'calendar' | 'rolling'>(() => {
+    const saved = localStorage.getItem('tryrating_weekly_window_type');
+    return saved === 'rolling' ? 'rolling' : 'calendar';
+  });
+  const [limitEnforcement, setLimitEnforcement] = useState<'confirm' | 'block' | 'warn'>(() => {
+    const saved = localStorage.getItem('tryrating_limit_enforcement');
+    return (saved === 'block' || saved === 'warn' || saved === 'confirm') ? saved : 'confirm';
+  });
+
+  const [tempWeeklyLimit, setTempWeeklyLimit] = useState(weeklyLimit.toString());
+  const [tempWeeklyWindowType, setTempWeeklyWindowType] = useState<'calendar' | 'rolling'>(weeklyWindowType);
+  const [tempLimitEnforcement, setTempLimitEnforcement] = useState<'confirm' | 'block' | 'warn'>(limitEnforcement);
+
+  const [pendingOverLimitTask, setPendingOverLimitTask] = useState<{ ert: number; category: string; projectedHours: number; currentHours: number } | null>(null);
+  const [showStrictBlockModal, setShowStrictBlockModal] = useState<boolean>(false);
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
@@ -241,6 +272,9 @@ export default function App() {
             if (data.baseRate) setBaseRate(data.baseRate);
             if (data.premiumRate) setPremiumRate(data.premiumRate);
             if (data.showEarnings !== undefined) setShowEarnings(data.showEarnings);
+            if (data.weeklyLimit) setWeeklyLimit(data.weeklyLimit);
+            if (data.weeklyWindowType) setWeeklyWindowType(data.weeklyWindowType);
+            if (data.limitEnforcement) setLimitEnforcement(data.limitEnforcement);
           } else {
             // First time logging in, push local settings to Firebase
             await setDoc(doc(db, 'users', u.uid), {
@@ -248,7 +282,10 @@ export default function App() {
               dailyGoal,
               baseRate,
               premiumRate,
-              showEarnings
+              showEarnings,
+              weeklyLimit,
+              weeklyWindowType,
+              limitEnforcement
             });
           }
 
@@ -340,7 +377,10 @@ export default function App() {
         dailyGoal,
         baseRate,
         premiumRate,
-        showEarnings
+        showEarnings,
+        weeklyLimit,
+        weeklyWindowType,
+        limitEnforcement
       }, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
@@ -416,6 +456,21 @@ export default function App() {
     syncSettingsToFirebase();
   }, [premiumRate]);
 
+  useEffect(() => {
+    localStorage.setItem('tryrating_weekly_limit', weeklyLimit.toString());
+    syncSettingsToFirebase();
+  }, [weeklyLimit]);
+
+  useEffect(() => {
+    localStorage.setItem('tryrating_weekly_window_type', weeklyWindowType);
+    syncSettingsToFirebase();
+  }, [weeklyWindowType]);
+
+  useEffect(() => {
+    localStorage.setItem('tryrating_limit_enforcement', limitEnforcement);
+    syncSettingsToFirebase();
+  }, [limitEnforcement]);
+
   const addCategory = () => {
     if (newCategoryName.trim() && !categories.includes(newCategoryName.trim())) {
       setCategories([...categories, newCategoryName.trim()]);
@@ -458,6 +513,159 @@ export default function App() {
     return () => clearInterval(interval);
   }, [logs]);
 
+  interface WindowDayStat {
+    dateKey: string;
+    dayName: string;
+    shortDay: string;
+    dateLabel: string;
+    minutes: number;
+    hours: number;
+    isToday: boolean;
+    isSelected: boolean;
+    taskCount: number;
+  }
+
+  const getWeeklyWindowStats = (refDateKey: string = currentDateKey, type: 'calendar' | 'rolling' = weeklyWindowType) => {
+    const [y, m, d] = refDateKey.split('-').map(Number);
+    const refDate = new Date(y, m - 1, d);
+    const todayKey = getTodayKey();
+    
+    let days: WindowDayStat[] = [];
+    let windowLabel = '';
+    let resetInfo = '';
+    let timeUntilReset = '';
+    let oldestDayInfo: { label: string; hours: number } | null = null;
+    let nextResetDate: Date;
+    
+    if (type === 'calendar') {
+      // Monday to Sunday calendar week
+      const dayOfWeek = refDate.getDay(); // 0 is Sun, 1 is Mon...
+      const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      const monday = new Date(y, m - 1, d + diffToMonday);
+      
+      for (let i = 0; i < 7; i++) {
+        const cur = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+        const key = formatDateToKey(cur);
+        const dayTasks = logs[key] || [];
+        const mins = dayTasks.reduce((acc, t) => acc + t.ert, 0);
+        days.push({
+          dateKey: key,
+          dayName: cur.toLocaleDateString(undefined, { weekday: 'long' }),
+          shortDay: cur.toLocaleDateString(undefined, { weekday: 'short' }),
+          dateLabel: cur.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          minutes: mins,
+          hours: mins / 60,
+          isToday: key === todayKey,
+          isSelected: key === currentDateKey,
+          taskCount: dayTasks.length
+        });
+      }
+      
+      windowLabel = `Calendar Week (Mon ${days[0].dateLabel} – Sun ${days[6].dateLabel})`;
+      
+      // Next reset: next Monday at 00:00:00
+      nextResetDate = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7);
+      nextResetDate.setHours(0, 0, 0, 0);
+      
+      const now = new Date();
+      const msLeft = nextResetDate.getTime() - now.getTime();
+      if (msLeft > 0) {
+        const daysLeft = Math.floor(msLeft / (1000 * 60 * 60 * 24));
+        const hoursLeft = Math.floor((msLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        timeUntilReset = daysLeft > 0 ? `${daysLeft}d ${hoursLeft}h` : `${hoursLeft}h`;
+        resetInfo = `Resets next Monday, ${nextResetDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} at 00:00 (in ${timeUntilReset})`;
+      } else {
+        resetInfo = `Resets next Monday at 00:00`;
+      }
+    } else {
+      // Rolling 7-day window ending on refDate
+      for (let i = 6; i >= 0; i--) {
+        const cur = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate() - i);
+        const key = formatDateToKey(cur);
+        const dayTasks = logs[key] || [];
+        const mins = dayTasks.reduce((acc, t) => acc + t.ert, 0);
+        days.push({
+          dateKey: key,
+          dayName: cur.toLocaleDateString(undefined, { weekday: 'long' }),
+          shortDay: cur.toLocaleDateString(undefined, { weekday: 'short' }),
+          dateLabel: cur.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+          minutes: mins,
+          hours: mins / 60,
+          isToday: key === todayKey,
+          isSelected: key === currentDateKey,
+          taskCount: dayTasks.length
+        });
+      }
+      
+      windowLabel = `Rolling 7 Days (${days[0].dateLabel} – ${days[6].dateLabel})`;
+      
+      const oldest = days[0];
+      oldestDayInfo = {
+        label: `${oldest.shortDay} (${oldest.dateLabel})`,
+        hours: oldest.hours
+      };
+      
+      nextResetDate = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate() + 1);
+      nextResetDate.setHours(0, 0, 0, 0);
+      const now = new Date();
+      const msLeft = nextResetDate.getTime() - now.getTime();
+      if (msLeft > 0) {
+        const hoursLeft = Math.max(1, Math.floor(msLeft / (1000 * 60 * 60)));
+        timeUntilReset = `${hoursLeft}h`;
+        resetInfo = oldest.hours > 0 
+          ? `${oldest.hours.toFixed(1)}h from ${oldestDayInfo.label} rolls off tomorrow at 00:00 (in ${timeUntilReset})` 
+          : `Oldest day rolls off tomorrow at 00:00 (in ${timeUntilReset})`;
+      } else {
+        resetInfo = `Oldest day rolls off tomorrow at 00:00`;
+      }
+    }
+    
+    const totalMinutes = days.reduce((acc, d) => acc + d.minutes, 0);
+    const totalHours = totalMinutes / 60;
+    const remainingMinutes = Math.max(0, weeklyLimit * 60 - totalMinutes);
+    const remainingHours = remainingMinutes / 60;
+    const isCapReached = totalHours >= weeklyLimit;
+    const isNearCap = !isCapReached && totalHours >= Math.max(0, weeklyLimit - 2);
+    const percentUsed = Math.min(100, (totalMinutes / (weeklyLimit * 60)) * 100);
+    const excessHours = Math.max(0, totalHours - weeklyLimit);
+
+    return {
+      days,
+      windowLabel,
+      resetInfo,
+      timeUntilReset,
+      oldestDayInfo,
+      totalMinutes,
+      totalHours,
+      remainingMinutes,
+      remainingHours,
+      isCapReached,
+      isNearCap,
+      percentUsed,
+      excessHours,
+      weeklyLimit,
+      type
+    };
+  };
+
+  const commitTask = (ert: number, category: string) => {
+    const newTask: Task = {
+      id: Math.random().toString(36).substr(2, 9),
+      ert,
+      timestamp: Date.now(),
+      category,
+    };
+    
+    setLogs(prev => ({
+      ...prev,
+      [currentDateKey]: [...(prev[currentDateKey] || []), newTask]
+    }));
+    
+    setInputValue('');
+    setPendingOverLimitTask(null);
+    inputRef.current?.focus();
+  };
+
   const addTask = (e?: FormEvent) => {
     if (e) e.preventDefault();
     
@@ -480,20 +688,26 @@ export default function App() {
     }
 
     if (!isNaN(ert) && ert > 0) {
-      const newTask: Task = {
-        id: Math.random().toString(36).substr(2, 9),
-        ert,
-        timestamp: Date.now(),
-        category: selectedCategory,
-      };
-      
-      setLogs(prev => ({
-        ...prev,
-        [currentDateKey]: [...(prev[currentDateKey] || []), newTask]
-      }));
-      
-      setInputValue('');
-      inputRef.current?.focus();
+      const curWeekly = getWeeklyWindowStats(currentDateKey, weeklyWindowType);
+      const projectedTotalMins = curWeekly.totalMinutes + ert;
+      const projectedHours = projectedTotalMins / 60;
+
+      if (projectedHours > weeklyLimit || curWeekly.isCapReached) {
+        if (limitEnforcement === 'block') {
+          setShowStrictBlockModal(true);
+          return;
+        } else if (limitEnforcement === 'confirm') {
+          setPendingOverLimitTask({
+            ert,
+            category: selectedCategory,
+            projectedHours,
+            currentHours: curWeekly.totalHours
+          });
+          return;
+        }
+      }
+
+      commitTask(ert, selectedCategory);
     }
   };
 
@@ -746,6 +960,23 @@ export default function App() {
   };
 
   const paymentStats = getBiWeeklyStats('current');
+  const weeklyStats = getWeeklyWindowStats(currentDateKey, weeklyWindowType);
+
+  const navigateDay = (offsetDays: number) => {
+    const [y, m, d] = currentDateKey.split('-').map(Number);
+    const date = new Date(y, m - 1, d + offsetDays);
+    setCurrentDateKey(formatDateToKey(date));
+  };
+
+  const openGoalModal = () => {
+    setTempGoal(dailyGoal.toString());
+    setTempWeeklyLimit(weeklyLimit.toString());
+    setTempWeeklyWindowType(weeklyWindowType);
+    setTempLimitEnforcement(limitEnforcement);
+    setTempBaseRate(baseRate.toString());
+    setTempPremiumRate(premiumRate.toString());
+    setShowGoalModal(true);
+  };
 
   const generatePaymentReport = () => {
     const stats = getBiWeeklyStats(submissionPeriod);
@@ -820,12 +1051,19 @@ export default function App() {
   const updateGoal = (e: FormEvent) => {
     e.preventDefault();
     const newGoal = parseFloat(tempGoal);
+    const newWeekly = parseFloat(tempWeeklyLimit);
     const newBase = parseInt(tempBaseRate, 10);
     const newPremium = parseInt(tempPremiumRate, 10);
     
     if (!isNaN(newGoal) && newGoal > 0) {
       setDailyGoal(newGoal);
     }
+    if (!isNaN(newWeekly) && newWeekly > 0) {
+      setWeeklyLimit(newWeekly);
+    }
+    setWeeklyWindowType(tempWeeklyWindowType);
+    setLimitEnforcement(tempLimitEnforcement);
+
     if (!isNaN(newBase) && newBase > 0) {
       setBaseRate(newBase);
     }
@@ -918,11 +1156,35 @@ export default function App() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">TryRating Time Tracker</h1>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                      <Calendar size={14} />
-                      {formatDateLabel(currentDateKey)}
-                    </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-1.5">
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
+                      <button 
+                        onClick={() => navigateDay(-1)}
+                        className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                        title="Previous Day"
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span className="text-xs font-semibold px-1 text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                        <Calendar size={13} className="text-[#6366f1]" />
+                        {formatDateLabel(currentDateKey)}
+                      </span>
+                      <button 
+                        onClick={() => navigateDay(1)}
+                        className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white dark:hover:bg-slate-700 rounded transition-colors"
+                        title="Next Day"
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                      {currentDateKey !== getTodayKey() && (
+                        <button 
+                          onClick={() => setCurrentDateKey(getTodayKey())}
+                          className="text-[10px] bg-[#6366f1] text-white px-2 py-0.5 rounded font-bold hover:bg-[#4f46e5] ml-1 transition-colors"
+                        >
+                          Jump to Today
+                        </button>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5 font-medium">
                       <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
                       Auto-backup: {lastBackup}
@@ -967,14 +1229,9 @@ export default function App() {
                 </button>
               )}
                 <button 
-                  onClick={() => {
-                    setTempGoal(dailyGoal.toString());
-                    setTempBaseRate(baseRate.toString());
-                    setTempPremiumRate(premiumRate.toString());
-                    setShowGoalModal(true);
-                  }}
+                  onClick={openGoalModal}
                   className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-[#6366f1] transition-all"
-                  title="Settings"
+                  title="Settings & Weekly Limit"
                 >
                   <Settings size={18} />
                 </button>
@@ -1003,7 +1260,7 @@ export default function App() {
             </header>
 
             {/* Stats Grid */}
-            <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 px-4 py-4 sm:px-6 sm:py-8 md:px-10">
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 px-4 py-4 sm:px-6 sm:py-6 md:px-10">
               <div className="stat-card bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Tasks Completed</div>
                 <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1] dark:text-[#818cf8]">{tasks.length}</div>
@@ -1013,15 +1270,11 @@ export default function App() {
               <div className="stat-card bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
                 <div className="relative z-10">
                   <div className="flex justify-between items-start">
-                    <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Total ERT (Min)</div>
+                    <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Today's ERT</div>
                     <button 
-                      onClick={() => {
-                        setTempGoal(dailyGoal.toString());
-                        setTempBaseRate(baseRate.toString());
-                        setTempPremiumRate(premiumRate.toString());
-                        setShowGoalModal(true);
-                      }}
+                      onClick={openGoalModal}
                       className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 dark:text-slate-500 hover:text-[#6366f1] transition-all"
+                      title="Adjust Daily Target"
                     >
                       <Target size={14} />
                     </button>
@@ -1041,20 +1294,61 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="stat-card bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative group">
-    <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">Period Total Hours</div>
-    <div className="stat-value text-2xl sm:text-3xl font-bold text-[#6366f1] dark:text-[#818cf8]">
-      {Math.floor(paymentStats.hoursTotal)}h {Math.round((paymentStats.hoursTotal % 1) * 60)}m
-    </div>
-    <div className="flex justify-between items-center mt-2">
-      <span className="stat-sub text-xs text-slate-400 dark:text-slate-500 italic">Target: 40h</span>
-      <span className="text-[10px] font-bold text-[#6366f1]">{Math.round(Math.min((paymentStats.hoursTotal / 40) * 100, 100))}%</span>
-    </div>
-  </div>
+              {/* 7-Day Window Stat Card */}
+              <div className={`stat-card bg-white dark:bg-slate-900 p-3 sm:p-5 rounded-xl border shadow-sm relative overflow-hidden group transition-all ${
+                weeklyStats.isCapReached 
+                  ? 'border-red-300 dark:border-red-900/60 bg-red-50/20 dark:bg-red-950/20' 
+                  : weeklyStats.isNearCap 
+                  ? 'border-amber-300 dark:border-amber-800 bg-amber-50/20 dark:bg-amber-950/20' 
+                  : 'border-slate-200 dark:border-slate-800'
+              }`}>
+                <div className="flex justify-between items-start">
+                  <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
+                    {weeklyStats.isCapReached ? (
+                      <ShieldAlert size={12} className="text-red-500" />
+                    ) : weeklyStats.isNearCap ? (
+                      <AlertTriangle size={12} className="text-amber-500" />
+                    ) : (
+                      <ShieldCheck size={12} className="text-emerald-500" />
+                    )}
+                    7-Day Window
+                  </div>
+                  <button 
+                    onClick={openGoalModal}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 dark:text-slate-500 hover:text-[#6366f1] transition-all"
+                    title="Configure 20h Limit"
+                  >
+                    <Settings size={14} />
+                  </button>
+                </div>
+                <div className={`stat-value text-2xl sm:text-3xl font-bold ${
+                  weeklyStats.isCapReached ? 'text-red-600 dark:text-red-400' : weeklyStats.isNearCap ? 'text-amber-600 dark:text-amber-400' : 'text-[#6366f1] dark:text-[#818cf8]'
+                }`}>
+                  {Math.floor(weeklyStats.totalHours)}h {Math.round((weeklyStats.totalHours % 1) * 60)}m
+                </div>
+                <div className="flex justify-between items-center mt-3">
+                  <span className="stat-sub text-xs text-slate-400 dark:text-slate-500 italic">Cap: {weeklyLimit}h</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    weeklyStats.isCapReached ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300' : weeklyStats.isNearCap ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300' : 'text-[#6366f1] dark:text-[#818cf8]'
+                  }`}>
+                    {weeklyStats.isCapReached ? '100% Capped' : `${Math.round(weeklyStats.percentUsed)}%`}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${weeklyStats.percentUsed}%` }}
+                    className={`h-full rounded-full ${
+                      weeklyStats.isCapReached ? 'bg-red-500' : weeklyStats.isNearCap ? 'bg-amber-500' : 'bg-[#6366f1]'
+                    }`}
+                  />
+                </div>
+              </div>
 
+              {/* Payment Stats Card */}
               <div className="stat-card bg-slate-50 dark:bg-slate-800/50 p-3 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm bg-gradient-to-br from-white to-[#f5f3ff] relative group">
                 <div className="stat-label text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2 flex justify-between items-center">
-                  Current Period Payment
+                  Period Payment
                   <button 
                     onClick={() => setShowSubmitPaymentModal(true)}
                     className="opacity-0 group-hover:opacity-100 text-[#6366f1] hover:underline transition-all font-bold"
@@ -1067,9 +1361,234 @@ export default function App() {
                 </div>
                 <div className="flex justify-between items-center mt-2">
                   <span className="stat-sub text-xs text-slate-400 dark:text-slate-500 italic">Rate: {showEarnings ? `₦${paymentStats.rate}/hr` : '₦•••/hr'}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${paymentStats.hoursTotal >= 40 ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${paymentStats.hoursTotal >= 40 ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}>
                     {paymentStats.hoursTotal.toFixed(1)}h / 40h
                   </span>
+                </div>
+              </div>
+            </section>
+
+            {/* Dedicated 7-Day Window Work Cap Card & Visualizer */}
+            <section className="px-4 pb-4 sm:px-6 sm:pb-6 md:px-10">
+              <div className={`p-5 sm:p-6 rounded-2xl border transition-all shadow-sm ${
+                weeklyStats.isCapReached 
+                  ? 'bg-red-50/60 dark:bg-red-950/30 border-red-200 dark:border-red-900/60' 
+                  : weeklyStats.isNearCap 
+                  ? 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60' 
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+              }`}>
+                {/* Header row */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      weeklyStats.isCapReached 
+                        ? 'bg-red-500/10 text-red-600 dark:text-red-400' 
+                        : weeklyStats.isNearCap 
+                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    }`}>
+                      {weeklyStats.isCapReached ? <ShieldAlert size={22} /> : weeklyStats.isNearCap ? <AlertTriangle size={22} /> : <ShieldCheck size={22} />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+                          7-Day Window Work Limit
+                        </h2>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                          weeklyStats.isCapReached 
+                            ? 'bg-red-500 text-white animate-pulse' 
+                            : weeklyStats.isNearCap 
+                            ? 'bg-amber-500 text-white' 
+                            : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                        }`}>
+                          {weeklyStats.isCapReached ? '20h Cap Reached' : weeklyStats.isNearCap ? 'Near Cap' : 'Active'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                        <Timer size={13} className="text-slate-400" />
+                        {weeklyStats.windowLabel}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Window Mode Switcher & Settings */}
+                  <div className="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <button 
+                        onClick={() => setWeeklyWindowType('calendar')}
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                          weeklyWindowType === 'calendar' 
+                            ? 'bg-white dark:bg-slate-900 shadow-sm text-[#6366f1] font-bold' 
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                        title="Standard Monday to Sunday work week (resets Mondays)"
+                      >
+                        Mon–Sun Week
+                      </button>
+                      <button 
+                        onClick={() => setWeeklyWindowType('rolling')}
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                          weeklyWindowType === 'rolling' 
+                            ? 'bg-white dark:bg-slate-900 shadow-sm text-[#6366f1] font-bold' 
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        }`}
+                        title="Continuous trailing 7-day cycle"
+                      >
+                        Rolling 7-Day
+                      </button>
+                    </div>
+                    <button 
+                      onClick={openGoalModal}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-[#6366f1] transition-all"
+                      title="Adjust 20h Cap Settings"
+                    >
+                      <Settings size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Main Progress Indicator */}
+                <div className="my-4">
+                  <div className="flex justify-between items-baseline mb-2">
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-2xl sm:text-3xl font-extrabold ${
+                        weeklyStats.isCapReached ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'
+                      }`}>
+                        {Math.floor(weeklyStats.totalHours)}h {Math.round((weeklyStats.totalHours % 1) * 60)}m
+                      </span>
+                      <span className="text-sm font-semibold text-slate-400 dark:text-slate-500">
+                        / {weeklyLimit}h 0m limit
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      {weeklyStats.isCapReached ? (
+                        <span className="text-xs font-bold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-2 py-1 rounded-md">
+                          0h remaining • Work Paused
+                        </span>
+                      ) : (
+                        <span className={`text-xs font-bold px-2 py-1 rounded-md ${
+                          weeklyStats.isNearCap 
+                            ? 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/50' 
+                            : 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/50'
+                        }`}>
+                          {Math.floor(weeklyStats.remainingHours)}h {Math.round((weeklyStats.remainingHours % 1) * 60)}m remaining
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Progress Bar with 20h limit indicator */}
+                  <div className="relative w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${weeklyStats.percentUsed}%` }}
+                      className={`h-full rounded-full transition-all ${
+                        weeklyStats.isCapReached 
+                          ? 'bg-red-500' 
+                          : weeklyStats.isNearCap 
+                          ? 'bg-amber-500' 
+                          : 'bg-gradient-to-r from-emerald-500 to-[#6366f1]'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* 7-Day Visual Day Breakdown */}
+                <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5 my-3">
+                  {weeklyStats.days.map((day) => {
+                    const dayHours = day.hours;
+                    const maxDailyScale = Math.max(5, ...weeklyStats.days.map(d => d.hours));
+                    const fillPercent = Math.min(100, (dayHours / maxDailyScale) * 100);
+                    const isSelected = day.dateKey === currentDateKey;
+
+                    return (
+                      <button
+                        key={day.dateKey}
+                        onClick={() => setCurrentDateKey(day.dateKey)}
+                        className={`flex flex-col items-center p-2 rounded-xl border text-center transition-all group ${
+                          isSelected 
+                            ? 'bg-[#6366f1]/10 border-[#6366f1] text-[#6366f1] ring-2 ring-[#6366f1]/30' 
+                            : day.isToday 
+                            ? 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700' 
+                            : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-800 hover:border-slate-300'
+                        }`}
+                        title={`Click to view tasks for ${day.dayName} (${day.dateLabel}): ${dayHours.toFixed(1)}h logged`}
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-slate-200">
+                          {day.shortDay}
+                        </span>
+                        <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                          {day.dateLabel.split(' ')[1]}
+                        </span>
+
+                        {/* Mini vertical meter */}
+                        <div className="w-full h-8 bg-slate-200 dark:bg-slate-700 rounded-md my-1.5 overflow-hidden flex flex-col justify-end p-0.5">
+                          <motion.div 
+                            initial={{ height: 0 }}
+                            animate={{ height: `${fillPercent}%` }}
+                            className={`w-full rounded-sm ${
+                              dayHours > 0 
+                                ? isSelected 
+                                  ? 'bg-[#6366f1]' 
+                                  : 'bg-emerald-500 dark:bg-emerald-400' 
+                                : 'bg-transparent'
+                            }`}
+                          />
+                        </div>
+
+                        <span className={`text-[11px] font-bold ${
+                          dayHours > 0 
+                            ? isSelected 
+                              ? 'text-[#6366f1]' 
+                              : 'text-slate-800 dark:text-slate-200' 
+                            : 'text-slate-400 dark:text-slate-500'
+                        }`}>
+                          {dayHours > 0 ? `${dayHours.toFixed(1)}h` : '—'}
+                        </span>
+                        {day.isToday && (
+                          <span className="text-[9px] font-extrabold uppercase bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1 rounded mt-0.5">
+                            Today
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Reset Notice & Work Status Guidance */}
+                <div className={`mt-3 p-3 rounded-xl text-xs flex items-start gap-2.5 ${
+                  weeklyStats.isCapReached 
+                    ? 'bg-red-100/80 dark:bg-red-950/80 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-200' 
+                    : weeklyStats.isNearCap 
+                    ? 'bg-amber-100/80 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200' 
+                    : 'bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                }`}>
+                  <Info size={16} className={`shrink-0 mt-0.5 ${
+                    weeklyStats.isCapReached ? 'text-red-500' : weeklyStats.isNearCap ? 'text-amber-500' : 'text-[#6366f1]'
+                  }`} />
+                  <div className="flex-1 space-y-1">
+                    {weeklyStats.isCapReached ? (
+                      <div>
+                        <span className="font-bold">20-Hour Weekly Limit Reached:</span> You have completed {weeklyStats.totalHours.toFixed(1)}h in this 7-day window. Per rating guidelines (TryRating), <strong>you cannot work until the next window begins</strong>.
+                        <div className="font-semibold mt-0.5 text-red-900 dark:text-red-100 flex items-center gap-1.5">
+                          <Clock size={12} />
+                          {weeklyStats.resetInfo}
+                        </div>
+                      </div>
+                    ) : weeklyStats.isNearCap ? (
+                      <div>
+                        <span className="font-bold">Approaching 20-Hour Limit:</span> You have logged {weeklyStats.totalHours.toFixed(1)}h. You only have <strong>{weeklyStats.remainingHours.toFixed(1)}h left</strong> before reaching your weekly maximum.
+                        <div className="font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                          {weeklyStats.resetInfo}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        You can safely work up to <strong>{weeklyStats.remainingHours.toFixed(1)}h more</strong> in this 7-day window.
+                        <span className="text-slate-500 dark:text-slate-400 ml-1.5 font-medium">({weeklyStats.resetInfo})</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </section>
@@ -1078,6 +1597,16 @@ export default function App() {
             <section className="px-4 pb-6 sm:px-6 sm:pb-8 md:px-10">
               <div className="input-card bg-[#6366f1] p-5 sm:p-8 md:p-10 rounded-2xl md:rounded-[1.5rem] shadow-[0_10px_15px_-3px_rgba(99,102,241,0.3)] flex flex-col md:flex-row items-center gap-4 md:gap-8">
                 <div className="w-full">
+                  {/* Warning banner inside input if capped */}
+                  {weeklyStats.isCapReached && (
+                    <div className="mb-4 p-3 bg-red-600/30 border border-white/40 rounded-xl text-white text-xs font-semibold flex items-center gap-2.5">
+                      <AlertOctagon size={18} className="shrink-0 text-red-200 animate-pulse" />
+                      <span>
+                        <strong>Work Paused (20h Cap Reached):</strong> You have completed {weeklyStats.totalHours.toFixed(1)}h in this 7-day window. Working further may violate program limits. You can resume when the next window begins.
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-3">
                     <label className="text-sm font-medium text-white/90">Task Details</label>
                     <div className="flex flex-wrap gap-2">
@@ -1120,10 +1649,23 @@ export default function App() {
                     />
                     <button 
                       type="submit"
-                      className="bg-white text-[#6366f1] font-bold px-6 py-3 md:px-8 md:py-4 rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center md:justify-start gap-2"
+                      className={`font-bold px-6 py-3 md:px-8 md:py-4 rounded-xl shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center md:justify-start gap-2 ${
+                        weeklyStats.isCapReached 
+                          ? 'bg-red-500 hover:bg-red-600 text-white' 
+                          : 'bg-white text-[#6366f1]'
+                      }`}
                     >
-                      <Plus size={20} strokeWidth={3} />
-                      Log Task
+                      {weeklyStats.isCapReached ? (
+                        <>
+                          <Lock size={18} />
+                          <span>{limitEnforcement === 'block' ? 'Limit Reached' : 'Log (Overtime)'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={20} strokeWidth={3} />
+                          <span>Log Task</span>
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>
@@ -1232,13 +1774,14 @@ export default function App() {
                   <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50 mb-6">{formatDateLabel(selectedHistoryDate)}</h2>
                   
                   {/* Stats snippet for history day */}
-                  <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 sm:mb-8">
-                    <div className="bg-white dark:bg-slate-900 p-2 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-6 sm:mb-8">
+                    <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                       <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Tasks</div>
                       <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">{(logs[selectedHistoryDate] || []).length}</div>
+                      <div className="text-[10px] text-slate-400 italic mt-0.5">Logged that day</div>
                     </div>
-                    <div className="bg-white dark:bg-slate-900 p-2 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Total ERT (Day)</div>
+                    <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">Day ERT</div>
                       <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                         {(() => {
                           const totalMins = (logs[selectedHistoryDate] || []).reduce((acc, t) => acc + t.ert, 0);
@@ -1247,17 +1790,33 @@ export default function App() {
                           return h > 0 ? `${h}h ${m}m` : `${m}m`;
                         })()}
                       </div>
+                      <div className="text-[10px] text-slate-400 italic mt-0.5">Daily total</div>
                     </div>
-                    <div className="bg-[#6366f1]/5 p-4 rounded-xl border border-[#6366f1]/20 shadow-sm text-center">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#6366f1] dark:text-[#818cf8] mb-1">
-                        Period Stat ({getPeriodStatsForDate(selectedHistoryDate).periodLabel})
+                    <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">7-Day Window</div>
+                      <div className="text-2xl font-bold text-[#6366f1] dark:text-[#818cf8]">
+                        {(() => {
+                          const w = getWeeklyWindowStats(selectedHistoryDate, weeklyWindowType);
+                          return `${w.totalHours.toFixed(1)}h / ${weeklyLimit}h`;
+                        })()}
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <div className="text-2xl font-bold text-[#6366f1] dark:text-[#818cf8]">
+                      <div className="text-[10px] text-slate-400 italic mt-0.5">
+                        {(() => {
+                          const w = getWeeklyWindowStats(selectedHistoryDate, weeklyWindowType);
+                          return w.isCapReached ? 'Cap reached' : `${w.remainingHours.toFixed(1)}h remaining`;
+                        })()}
+                      </div>
+                    </div>
+                    <div className="bg-[#6366f1]/5 p-3 sm:p-4 rounded-xl border border-[#6366f1]/20 shadow-sm text-center">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-[#6366f1] dark:text-[#818cf8] mb-1">
+                        Period Stat
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="text-xl sm:text-2xl font-bold text-[#6366f1] dark:text-[#818cf8]">
                           {getPeriodStatsForDate(selectedHistoryDate).hours.toFixed(1)}h
                         </div>
                         {showEarnings && (
-                          <div className="text-sm font-semibold text-[#6366f1]/60 dark:text-[#818cf8]/80">
+                          <div className="text-xs font-semibold text-[#6366f1]/70 dark:text-[#818cf8]/80">
                             ₦{getPeriodStatsForDate(selectedHistoryDate).earnings.toLocaleString()}
                           </div>
                         )}
@@ -1787,7 +2346,145 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Goal Settings Modal */}
+      {/* Over-Limit Confirmation Modal */}
+      <AnimatePresence>
+        {pendingOverLimitTask && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPendingOverLimitTask(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden p-6 border border-amber-200 dark:border-amber-800/60"
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    20-Hour Weekly Limit Warning
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Logging this task will exceed your 7-day window limit
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-xl p-4 text-xs text-amber-900 dark:text-amber-200 space-y-2 mb-4">
+                <p>
+                  Per TryRating and program guidelines, raters have a <strong>20-hour limit in any 7-day window</strong>. Working beyond 20 hours without an authorized overtime allowance may violate program rules.
+                </p>
+                <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/60 flex justify-between font-mono font-semibold">
+                  <span>Current logged:</span>
+                  <span>{pendingOverLimitTask.currentHours.toFixed(2)}h</span>
+                </div>
+                <div className="flex justify-between font-mono font-semibold">
+                  <span>This task:</span>
+                  <span>+{(pendingOverLimitTask.ert / 60).toFixed(2)}h ({pendingOverLimitTask.ert}m)</span>
+                </div>
+                <div className="flex justify-between font-mono font-bold text-amber-950 dark:text-amber-100">
+                  <span>Projected total:</span>
+                  <span>{pendingOverLimitTask.projectedHours.toFixed(2)}h / {weeklyLimit}h limit</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setPendingOverLimitTask(null)}
+                  className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => commitTask(pendingOverLimitTask.ert, pendingOverLimitTask.category)}
+                  className="flex-1 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-sm shadow-md shadow-amber-600/20 transition-all"
+                >
+                  Override & Log
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Strict Block Modal */}
+      <AnimatePresence>
+        {showStrictBlockModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowStrictBlockModal(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden p-6 border border-red-200 dark:border-red-900/60"
+            >
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
+                  <Lock size={22} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    20-Hour Weekly Cap Reached
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Task logging is paused until the next window begins
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 rounded-xl p-4 text-xs text-red-900 dark:text-red-200 space-y-2 mb-4">
+                <p>
+                  You have logged <strong>{weeklyStats.totalHours.toFixed(1)}h</strong> in this 7-day window, reaching or exceeding the <strong>{weeklyLimit}-hour maximum</strong>.
+                </p>
+                <p>
+                  You cannot work or log more tasks until the next window begins:
+                </p>
+                <div className="font-semibold text-red-950 dark:text-red-100 flex items-center gap-1.5 pt-1">
+                  <Clock size={14} />
+                  {weeklyStats.resetInfo}
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowStrictBlockModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-sm transition-colors"
+                >
+                  Close
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowStrictBlockModal(false);
+                    openGoalModal();
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-[#6366f1] text-white font-bold rounded-xl text-sm hover:bg-[#4f46e5] transition-all"
+                >
+                  Adjust Settings
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Goal & 20h Limit Settings Modal */}
       <AnimatePresence>
         {showGoalModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1802,68 +2499,210 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden p-5 sm:p-8"
+              className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden p-5 sm:p-7 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Account Settings</h3>
+              <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Goals & Work Limits</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Configure your daily targets and 20h weekly window</p>
+                </div>
                 <button 
                   onClick={() => setShowGoalModal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={updateGoal} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Daily Target (Hours)
-                  </label>
-                  <input 
-                    type="number"
-                    step="0.5"
-                    value={tempGoal}
-                    onChange={(e) => setTempGoal(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-lg font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
-                  />
+              <form onSubmit={updateGoal} className="space-y-5">
+                {/* Daily Goal & Weekly Limit Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">
+                      Daily Target (Hours)
+                    </label>
+                    <input 
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      max="24"
+                      value={tempGoal}
+                      onChange={(e) => setTempGoal(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-base font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">Your daily pacing</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5 flex items-center justify-between">
+                      <span>Weekly Cap (Hours)</span>
+                      <span className="text-[10px] text-[#6366f1] font-extrabold bg-[#6366f1]/10 px-1.5 py-0.2 rounded">20h Standard</span>
+                    </label>
+                    <input 
+                      type="number"
+                      step="0.5"
+                      min="1"
+                      max="60"
+                      value={tempWeeklyLimit}
+                      onChange={(e) => setTempWeeklyLimit(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2 text-base font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 block">Max hours in 7-day window</span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Window Calculation Type */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">
+                    7-Day Window Calculation
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTempWeeklyWindowType('calendar')}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        tempWeeklyWindowType === 'calendar'
+                          ? 'border-[#6366f1] bg-[#6366f1]/10 text-[#6366f1] ring-1 ring-[#6366f1]'
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="font-bold text-xs flex items-center gap-1.5">
+                        <Calendar size={13} />
+                        Mon – Sun Week
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                        Resets every Monday at 00:00. Standard for TryRating.
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setTempWeeklyWindowType('rolling')}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        tempWeeklyWindowType === 'rolling'
+                          ? 'border-[#6366f1] bg-[#6366f1]/10 text-[#6366f1] ring-1 ring-[#6366f1]'
+                          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="font-bold text-xs flex items-center gap-1.5">
+                        <Timer size={13} />
+                        Rolling 7-Day
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-snug">
+                        Continuous trailing 7 days. Hours roll off as days pass.
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Over-Limit Enforcement Policy */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">
+                    When 20h Limit is Reached
+                  </label>
+                  <div className="space-y-2">
+                    <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                      tempLimitEnforcement === 'confirm' 
+                        ? 'border-[#6366f1] bg-[#6366f1]/5 dark:bg-[#6366f1]/10' 
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}>
+                      <input 
+                        type="radio" 
+                        name="limitEnforcement" 
+                        value="confirm" 
+                        checked={tempLimitEnforcement === 'confirm'} 
+                        onChange={() => setTempLimitEnforcement('confirm')}
+                        className="mt-0.5 text-[#6366f1] focus:ring-[#6366f1]"
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-800 dark:text-slate-100">Warn & Require Confirmation (Recommended)</span>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Alerts you that 20h is reached and allows overriding only if you have authorized overtime.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                      tempLimitEnforcement === 'block' 
+                        ? 'border-[#6366f1] bg-[#6366f1]/5 dark:bg-[#6366f1]/10' 
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}>
+                      <input 
+                        type="radio" 
+                        name="limitEnforcement" 
+                        value="block" 
+                        checked={tempLimitEnforcement === 'block'} 
+                        onChange={() => setTempLimitEnforcement('block')}
+                        className="mt-0.5 text-[#6366f1] focus:ring-[#6366f1]"
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-800 dark:text-slate-100">Strict Block (Prevent Task Entry)</span>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Completely pauses task logging once 20h is logged until the window resets.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                      tempLimitEnforcement === 'warn' 
+                        ? 'border-[#6366f1] bg-[#6366f1]/5 dark:bg-[#6366f1]/10' 
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}>
+                      <input 
+                        type="radio" 
+                        name="limitEnforcement" 
+                        value="warn" 
+                        checked={tempLimitEnforcement === 'warn'} 
+                        onChange={() => setTempLimitEnforcement('warn')}
+                        className="mt-0.5 text-[#6366f1] focus:ring-[#6366f1]"
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-slate-800 dark:text-slate-100">Visual Warnings Only</span>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Shows red alert badges without intercepting task submission.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Rates */}
+                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100 dark:border-slate-800">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
                       Rate 1 (Below 40h)
                     </label>
                     <input 
                       type="number"
                       value={tempBaseRate}
                       onChange={(e) => setTempBaseRate(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-md font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
+                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
                       Rate 2 (40h+)
                     </label>
                     <input 
                       type="number"
                       value={tempPremiumRate}
                       onChange={(e) => setTempPremiumRate(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-md font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
+                      className="w-full bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1] transition-all"
                     />
                   </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 pt-2">
                   <button 
                     type="button"
                     onClick={() => setShowGoalModal(false)}
-                    className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                    className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 text-sm transition-colors"
                   >
                     Cancel
                   </button>
                   <button 
                     type="submit"
-                    className="flex-1 px-4 py-3 bg-[#6366f1] text-white font-bold rounded-xl shadow-lg shadow-[#6366f1]/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="flex-1 px-4 py-2.5 bg-[#6366f1] text-white font-bold rounded-xl shadow-lg shadow-[#6366f1]/30 transition-all hover:scale-[1.02] active:scale-[0.98] text-sm"
                   >
                     Save Settings
                   </button>

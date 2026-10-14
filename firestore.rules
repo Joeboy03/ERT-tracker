@@ -27,13 +27,16 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      return data.keys().hasOnly(['categories', 'dailyGoal', 'baseRate', 'premiumRate', 'showEarnings'])
+      return data.keys().hasOnly(['categories', 'dailyGoal', 'baseRate', 'premiumRate', 'showEarnings', 'weeklyLimit', 'weeklyWindowType', 'limitEnforcement'])
         && (data.get('categories', []) is list)
         && (data.get('categories', []).size() <= 50)
         && (data.get('dailyGoal', 0) is number)
         && (data.get('baseRate', 0) is number)
         && (data.get('premiumRate', 0) is number)
-        && (data.get('showEarnings', true) is bool);
+        && (data.get('showEarnings', true) is bool)
+        && (data.get('weeklyLimit', 20) is number)
+        && (data.get('weeklyWindowType', 'calendar') is string)
+        && (data.get('limitEnforcement', 'confirm') is string);
     }
 
     function isValidDailyLog(data, userId) {
