@@ -41,9 +41,12 @@ import {
   Volume2,
   VolumeX,
   Bell,
-  BellRing
+  BellRing,
+  Palette,
+  Check
 } from 'lucide-react';
 import { soundService } from './utils/soundService';
+import { THEME_PALETTES, resolveTheme, ThemePalette } from './utils/theme';
 import { Task } from './types';
 import { auth, db, loginWithGoogle, logout } from './firebase';
 import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
@@ -155,11 +158,26 @@ export default function App() {
   const [selectedHistoryDate, setSelectedHistoryDate] = useState<string | null>(null);
   
   const [inputValue, setInputValue] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('General');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    return localStorage.getItem('tryrating_selected_category') || 'General';
+  });
   const [categories, setCategories] = useState<string[]>(() => {
     const saved = localStorage.getItem('tryrating_categories');
     return saved ? JSON.parse(saved) : ['General', 'Search', 'Image', 'Mapping', 'Side-by-Side', 'Other'];
   });
+  
+  // Theme & Color Palette States (Google Chrome Profile Inspired)
+  const [themeId, setThemeId] = useState<string>(() => {
+    return localStorage.getItem('tryrating_theme_id') || 'indigo';
+  });
+  const [themeCustomColor, setThemeCustomColor] = useState<string>(() => {
+    return localStorage.getItem('tryrating_theme_custom_color') || '#6366f1';
+  });
+  const [showThemeModal, setShowThemeModal] = useState<boolean>(false);
+  const [quickAddOpen, setQuickAddOpen] = useState<boolean>(false);
+  const [quickAddName, setQuickAddName] = useState<string>('');
+
+  const activeTheme: ThemePalette = resolveTheme(themeId, themeCustomColor);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
@@ -318,7 +336,25 @@ export default function App() {
           const profileDoc = await getDoc(doc(db, 'users', u.uid));
           if (profileDoc.exists()) {
             const data = profileDoc.data();
-            if (data.categories) setCategories(data.categories);
+            if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+              setCategories(prev => {
+                const combined = Array.from(new Set([...prev, ...data.categories]));
+                localStorage.setItem('tryrating_categories', JSON.stringify(combined));
+                return combined;
+              });
+            }
+            if (data.selectedCategory) {
+              setSelectedCategory(data.selectedCategory);
+              localStorage.setItem('tryrating_selected_category', data.selectedCategory);
+            }
+            if (data.themeId) {
+              setThemeId(data.themeId);
+              localStorage.setItem('tryrating_theme_id', data.themeId);
+            }
+            if (data.themeCustomColor) {
+              setThemeCustomColor(data.themeCustomColor);
+              localStorage.setItem('tryrating_theme_custom_color', data.themeCustomColor);
+            }
             if (data.dailyGoal) setDailyGoal(data.dailyGoal);
             if (data.baseRate) setBaseRate(data.baseRate);
             if (data.premiumRate) setPremiumRate(data.premiumRate);
@@ -334,6 +370,7 @@ export default function App() {
             // First time logging in, push local settings to Firebase
             await setDoc(doc(db, 'users', u.uid), {
               categories,
+              selectedCategory,
               dailyGoal,
               baseRate,
               premiumRate,
@@ -344,7 +381,9 @@ export default function App() {
               soundEnabled,
               soundVolume,
               warningThresholdHours,
-              goalChimeEnabled
+              goalChimeEnabled,
+              themeId,
+              themeCustomColor
             });
           }
 
@@ -433,6 +472,7 @@ export default function App() {
     try {
       await setDoc(doc(db, 'users', user.uid), {
         categories,
+        selectedCategory,
         dailyGoal,
         baseRate,
         premiumRate,
@@ -443,7 +483,9 @@ export default function App() {
         soundEnabled,
         soundVolume,
         warningThresholdHours,
-        goalChimeEnabled
+        goalChimeEnabled,
+        themeId,
+        themeCustomColor
       }, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
@@ -545,6 +587,22 @@ export default function App() {
   }, [soundEnabled, soundVolume, warningThresholdHours, goalChimeEnabled]);
 
   useEffect(() => {
+    localStorage.setItem('tryrating_selected_category', selectedCategory);
+    syncSettingsToFirebase();
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--app-primary', activeTheme.primary);
+    document.documentElement.style.setProperty('--app-primary-hover', activeTheme.primaryHover);
+    document.documentElement.style.setProperty('--app-primary-light', activeTheme.lightBg);
+    document.documentElement.style.setProperty('--app-primary-dark-text', activeTheme.darkText);
+    document.documentElement.style.setProperty('--app-primary-badge', activeTheme.badgeBg);
+    localStorage.setItem('tryrating_theme_id', themeId);
+    localStorage.setItem('tryrating_theme_custom_color', themeCustomColor);
+    syncSettingsToFirebase();
+  }, [themeId, themeCustomColor, activeTheme]);
+
+  useEffect(() => {
     if (alertToast) {
       const timer = setTimeout(() => {
         setAlertToast(null);
@@ -553,11 +611,19 @@ export default function App() {
     }
   }, [alertToast]);
 
-  const addCategory = () => {
-    if (newCategoryName.trim() && !categories.includes(newCategoryName.trim())) {
-      setCategories([...categories, newCategoryName.trim()]);
-      setNewCategoryName('');
+  const addCategory = (customName?: string) => {
+    const nameToUse = (customName !== undefined ? customName : newCategoryName).trim();
+    if (nameToUse && !categories.includes(nameToUse)) {
+      const updated = [...categories, nameToUse];
+      setCategories(updated);
+      setSelectedCategory(nameToUse);
+      if (customName === undefined) setNewCategoryName('');
+      return true;
+    } else if (nameToUse) {
+      setSelectedCategory(nameToUse);
+      return true;
     }
+    return false;
   };
 
   const deleteCategory = (cat: string) => {
@@ -810,6 +876,12 @@ export default function App() {
     }
 
     if (!isNaN(ert) && ert > 0) {
+      const activeCat = selectedCategory.trim() || 'General';
+      if (!categories.includes(activeCat)) {
+        setCategories(prev => [...prev, activeCat]);
+      }
+      setSelectedCategory(activeCat);
+
       const curWeekly = getWeeklyWindowStats(currentDateKey, weeklyWindowType);
       const projectedTotalMins = curWeekly.totalMinutes + ert;
       const projectedHours = projectedTotalMins / 60;
@@ -821,7 +893,7 @@ export default function App() {
         } else if (limitEnforcement === 'confirm') {
           setPendingOverLimitTask({
             ert,
-            category: selectedCategory,
+            category: activeCat,
             projectedHours,
             currentHours: curWeekly.totalHours
           });
@@ -829,7 +901,7 @@ export default function App() {
         }
       }
 
-      commitTask(ert, selectedCategory);
+      commitTask(ert, activeCat);
     }
   };
 
@@ -1208,25 +1280,40 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-sans overflow-x-hidden selection:bg-[#6366f1] selection:text-white pb-12">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 font-sans overflow-x-hidden pb-12">
       <div className="max-w-5xl mx-auto md:my-10 bg-slate-50 dark:bg-slate-800/50 dark:bg-slate-950 md:rounded-2xl md:shadow-2xl overflow-hidden min-h-screen md:min-h-0 flex flex-col">
         {/* Navigation Bar */}
         <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center px-6 md:px-10">
           <div className="flex">
             <button 
               onClick={() => setView('tracker')}
-              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'tracker' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100'}`}
+              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'tracker' ? '' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100'}`}
+              style={view === 'tracker' ? { borderColor: activeTheme.primary, color: activeTheme.primary } : undefined}
             >
               Tracker
             </button>
             <button 
               onClick={() => setView('history')}
-              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'history' ? 'border-[#6366f1] text-[#6366f1]' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100'}`}
+              className={`px-4 py-4 text-sm font-bold tracking-wider uppercase transition-all border-b-2 ${view === 'history' ? '' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100'}`}
+              style={view === 'history' ? { borderColor: activeTheme.primary, color: activeTheme.primary } : undefined}
             >
               History
             </button>
           </div>
           <div className="flex items-center gap-2">
+            {/* Google Chrome Profile Color Palette Picker */}
+            <button 
+              onClick={() => setShowThemeModal(true)} 
+              className="p-1.5 rounded-lg border border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 text-slate-600 dark:text-slate-300 shadow-xs"
+              title={`Profile Color: ${activeTheme.name} (Click to customize)`}
+            >
+              <div 
+                className="w-4 h-4 rounded-full border border-black/15 dark:border-white/20 shrink-0 shadow-xs" 
+                style={{ background: `linear-gradient(135deg, ${activeTheme.circleSecondary} 50%, ${activeTheme.primary} 50%)` }}
+              />
+              <Palette size={14} className="text-slate-500 dark:text-slate-400" />
+            </button>
+
             <button 
               onClick={() => {
                 const next = !soundEnabled;
@@ -1236,9 +1323,10 @@ export default function App() {
               }} 
               className={`p-1.5 rounded-md transition-colors ${
                 soundEnabled 
-                  ? 'text-[#6366f1] bg-[#6366f1]/10 hover:bg-[#6366f1]/20' 
+                  ? 'hover:opacity-90' 
                   : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
+              style={soundEnabled ? { color: activeTheme.primary, backgroundColor: activeTheme.badgeBg } : undefined}
               title={soundEnabled ? `Sound Chimes & Alerts Active (${Math.round(soundVolume * 100)}%) - Click to Mute` : "Sound Alerts Muted - Click to Enable"}
             >
               {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
@@ -1355,7 +1443,7 @@ export default function App() {
                         <ChevronLeft size={14} />
                       </button>
                       <span className="text-xs font-semibold px-1 text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                        <Calendar size={13} className="text-[#6366f1]" />
+                        <Calendar size={13} style={{ color: activeTheme.primary }} />
                         {formatDateLabel(currentDateKey)}
                       </span>
                       <button 
@@ -1368,7 +1456,8 @@ export default function App() {
                       {currentDateKey !== getTodayKey() && (
                         <button 
                           onClick={() => setCurrentDateKey(getTodayKey())}
-                          className="text-[10px] bg-[#6366f1] text-white px-2 py-0.5 rounded font-bold hover:bg-[#4f46e5] ml-1 transition-colors"
+                          className="text-[10px] text-white px-2 py-0.5 rounded font-bold ml-1 transition-colors hover:opacity-90 shadow-xs"
+                          style={{ backgroundColor: activeTheme.primary }}
                         >
                           Jump to Today
                         </button>
@@ -1505,32 +1594,104 @@ export default function App() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Quick Log
+                      Task Type
                     </span>
                     <span className="text-xs text-slate-400 dark:text-slate-500">•</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      Select or type category, then enter ERT
+                      Saved automatically across refreshes
                     </span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {categories.slice(0, 5).map(cat => (
+                  <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+                    {categories.map(cat => {
+                      const isCatSelected = selectedCategory === cat;
+                      const catTasksCount = tasks.filter(t => t.category === cat).length;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setSelectedCategory(cat)}
+                          className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 ${
+                            isCatSelected 
+                              ? 'text-white shadow-xs' 
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700/60'
+                          }`}
+                          style={isCatSelected ? { backgroundColor: activeTheme.primary, borderColor: activeTheme.primary } : undefined}
+                        >
+                          <span>{cat}</span>
+                          {catTasksCount > 0 && (
+                            <span 
+                              className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                                isCatSelected ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                              }`}
+                            >
+                              {catTasksCount}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+
+                    {/* Quick inline "+ Type" button */}
+                    {quickAddOpen ? (
+                      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-300 dark:border-slate-700">
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Type name..."
+                          value={quickAddName}
+                          onChange={(e) => setQuickAddName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (quickAddName.trim()) {
+                                addCategory(quickAddName.trim());
+                                setQuickAddName('');
+                                setQuickAddOpen(false);
+                              }
+                            } else if (e.key === 'Escape') {
+                              setQuickAddOpen(false);
+                            }
+                          }}
+                          className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-[11px] px-2 py-0.5 rounded outline-none border border-slate-200 dark:border-slate-700 w-24"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (quickAddName.trim()) {
+                              addCategory(quickAddName.trim());
+                              setQuickAddName('');
+                              setQuickAddOpen(false);
+                            }
+                          }}
+                          className="text-[10px] font-bold text-white px-2 py-0.5 rounded"
+                          style={{ backgroundColor: activeTheme.primary }}
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setQuickAddOpen(false)}
+                          className="text-slate-400 hover:text-slate-600 p-0.5"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
                       <button
-                        key={cat}
                         type="button"
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all ${
-                          selectedCategory === cat 
-                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xs' 
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700/60'
-                        }`}
+                        onClick={() => setQuickAddOpen(true)}
+                        className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700/60 transition-all flex items-center gap-1"
+                        title="Quick add a new task type"
                       >
-                        {cat}
+                        <Plus size={12} />
+                        <span>Add</span>
                       </button>
-                    ))}
+                    )}
+
                     <button 
                       type="button"
                       onClick={() => setShowCategoryModal(true)}
-                      className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200/60 dark:border-slate-700/60 transition-all flex items-center gap-1"
+                      className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-slate-200/60 dark:border-slate-700/60 transition-all flex items-center gap-1 ml-auto"
                       title="Manage task categories"
                     >
                       <Settings size={11} />
@@ -1543,10 +1704,17 @@ export default function App() {
                 <form onSubmit={addTask} className="flex flex-col sm:flex-row gap-2.5 items-stretch">
                   <input
                     type="text"
-                    placeholder="Category (e.g. Map, Fact)..."
+                    placeholder="Task Type (e.g. Map, Fact)..."
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full sm:w-48 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#6366f1] focus:bg-white dark:focus:bg-slate-800 transition-all"
+                    onBlur={() => {
+                      const trimmed = selectedCategory.trim();
+                      if (trimmed && !categories.includes(trimmed)) {
+                        setCategories(prev => [...prev, trimmed]);
+                      }
+                    }}
+                    className="w-full sm:w-48 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:bg-white dark:focus:bg-slate-800 transition-all"
+                    style={{ borderColor: selectedCategory ? activeTheme.primary : undefined }}
                   />
                   <input
                     ref={inputRef}
@@ -1555,15 +1723,16 @@ export default function App() {
                     placeholder="ERT (e.g. 7, 1h 20m, 45s)"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-[#6366f1] focus:bg-white dark:focus:bg-slate-800 transition-all"
+                    className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:bg-white dark:focus:bg-slate-800 transition-all"
                   />
                   <button 
                     type="submit"
                     className={`font-semibold px-5 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-xs shrink-0 cursor-pointer ${
                       weeklyStats.isCapReached 
                         ? 'bg-red-500 hover:bg-red-600 text-white' 
-                        : 'bg-[#6366f1] hover:bg-[#4f46e5] text-white active:scale-[0.98]'
+                        : 'text-white hover:opacity-90 active:scale-[0.98]'
                     }`}
+                    style={!weeklyStats.isCapReached ? { backgroundColor: activeTheme.primary } : undefined}
                   >
                     {weeklyStats.isCapReached ? (
                       <>
@@ -1601,7 +1770,7 @@ export default function App() {
                       </button>
                     </div>
                     <div className="flex items-baseline gap-1.5" title={`${totalMinutes} minutes total logged today`}>
-                      <span className="text-xl sm:text-2xl font-bold tracking-tight text-[#6366f1] dark:text-[#818cf8]">
+                      <span className="text-xl sm:text-2xl font-bold tracking-tight" style={{ color: activeTheme.primary }}>
                         {formatErt(totalMinutes)}
                       </span>
                       <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
@@ -1616,7 +1785,8 @@ export default function App() {
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min(100, progressPercent)}%` }}
-                        className="h-full bg-[#6366f1] rounded-full"
+                        className="h-full rounded-full"
+                        style={{ backgroundColor: activeTheme.primary }}
                       />
                     </div>
                   </div>
@@ -1806,11 +1976,12 @@ export default function App() {
                           onClick={() => setCurrentDateKey(day.dateKey)}
                           className={`p-1.5 sm:p-2 rounded-xl border text-center transition-all ${
                             isSelected 
-                              ? 'bg-[#6366f1]/10 border-[#6366f1] text-[#6366f1] ring-1 ring-[#6366f1]/30 font-bold' 
+                              ? 'ring-1 font-bold' 
                               : day.isToday 
                               ? 'bg-slate-100/90 dark:bg-slate-800 border-slate-300 dark:border-slate-700' 
                               : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-200/60 dark:border-slate-800 hover:border-slate-300'
                           }`}
+                          style={isSelected ? { backgroundColor: activeTheme.badgeBg, borderColor: activeTheme.primary, color: activeTheme.primary } : undefined}
                           title={`${day.dayName} (${day.dateLabel}): ${dayHours.toFixed(1)}h logged`}
                         >
                           <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -1819,13 +1990,16 @@ export default function App() {
                           <div className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 leading-tight">
                             {day.dateLabel.split(' ')[1]}
                           </div>
-                          <div className={`text-xs font-bold mt-1 ${
-                            dayHours > 0 
-                              ? isSelected 
-                                ? 'text-[#6366f1]' 
-                                : 'text-slate-800 dark:text-slate-200' 
-                              : 'text-slate-400 dark:text-slate-500 font-normal'
-                          }`}>
+                          <div 
+                            className={`text-xs font-bold mt-1 ${
+                              dayHours > 0 
+                                ? isSelected 
+                                  ? '' 
+                                  : 'text-slate-800 dark:text-slate-200' 
+                                : 'text-slate-400 dark:text-slate-500 font-normal'
+                            }`}
+                            style={dayHours > 0 && isSelected ? { color: activeTheme.primary } : undefined}
+                          >
                             {dayHours > 0 ? `${dayHours.toFixed(1)}h` : '—'}
                           </div>
                           {day.isToday && (
@@ -1887,7 +2061,10 @@ export default function App() {
                                   {tasks.length - index}
                                 </td>
                                 <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1] dark:text-[#818cf8] bg-[#6366f1]/10 px-2 py-1 rounded-md">
+                                  <span 
+                                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md"
+                                    style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.primary }}
+                                  >
                                     {task.category || 'General'}
                                   </span>
                                 </td>
@@ -2020,7 +2197,10 @@ export default function App() {
                           <tr key={task.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:bg-slate-800/50 dark:bg-slate-950 transition-colors">
                             <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-500 dark:text-slate-400 font-medium">{index + 1}</td>
                             <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#6366f1] dark:text-[#818cf8] bg-[#6366f1]/10 px-2 py-1 rounded-md">
+                              <span 
+                                className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md"
+                                style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.primary }}
+                              >
                                 {task.category || 'General'}
                               </span>
                             </td>
@@ -2196,7 +2376,12 @@ export default function App() {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{formatDateLabel(dateKey)}</span>
                               {dateKey === getTodayKey() && (
-                                <span className="text-[10px] bg-[#6366f1]/10 text-[#6366f1] dark:text-[#818cf8] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Today</span>
+                                <span 
+                                  className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
+                                  style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.primary }}
+                                >
+                                  Today
+                                </span>
                               )}
                             </div>
                             <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -2206,12 +2391,12 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="flex flex-col items-end gap-1 mr-4 hidden sm:flex">
-                              <div className="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-[#6366f1]" style={{ width: `${stats.progressPercent}%` }} />
+                              <div className="w-32 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-full" style={{ width: `${stats.progressPercent}%`, backgroundColor: activeTheme.primary }} />
                               </div>
                               <span className="text-[9px] font-bold text-slate-400">{Math.round(stats.progressPercent)}% Goal</span>
                             </div>
-                            <ChevronRight size={20} className="text-slate-400 dark:text-slate-500 group-hover:text-[#6366f1] transition-colors" />
+                            <ChevronRight size={20} className="text-slate-400 dark:text-slate-500 transition-colors" />
                           </div>
                         </button>
                       );
@@ -2434,10 +2619,13 @@ export default function App() {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             >
-              <div className="bg-[#6366f1] p-6 text-white flex justify-between items-center">
+              <div 
+                className="p-6 text-white flex justify-between items-center transition-colors"
+                style={{ backgroundColor: activeTheme.primary }}
+              >
                 <div>
-                  <h3 className="text-xl font-bold">Manage Categories</h3>
-                  <p className="text-white/70 text-sm mt-1">Add, edit or remove task categories.</p>
+                  <h3 className="text-xl font-bold">Manage Task Types</h3>
+                  <p className="text-white/80 text-sm mt-1">Add, edit, select or delete task categories.</p>
                 </div>
                 <button 
                   onClick={() => {
@@ -2459,11 +2647,12 @@ export default function App() {
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && addCategory()}
-                    className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:border-[#6366f1]"
+                    className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none"
                   />
                   <button 
-                    onClick={addCategory}
-                    className="bg-[#6366f1] text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-[#4f46e5] flex items-center gap-1"
+                    onClick={() => addCategory()}
+                    className="text-white px-4 py-2 rounded-lg font-bold text-sm hover:opacity-90 flex items-center gap-1 transition-colors"
+                    style={{ backgroundColor: activeTheme.primary }}
                   >
                     <Plus size={16} />
                     Add
@@ -2471,53 +2660,298 @@ export default function App() {
                 </div>
 
                 <div className="space-y-2">
-                  {categories.map((cat, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 group">
-                      {editingCategoryIndex === idx ? (
-                        <div className="flex-1 flex gap-2">
-                          <input 
-                            autoFocus
-                            type="text"
-                            value={editingCategoryValue}
-                            onChange={(e) => setEditingCategoryValue(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && saveEditedCategory()}
-                            className="flex-1 bg-white dark:bg-slate-950 border border-[#6366f1] rounded-lg px-3 py-1 text-sm outline-none text-slate-900 dark:text-slate-100"
-                          />
-                          <button 
-                            onClick={saveEditedCategory}
-                            className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                          >
-                            <Save size={16} />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{cat}</span>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {categories.map((cat, idx) => {
+                    const isSelected = selectedCategory === cat;
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                          isSelected 
+                            ? 'bg-slate-50/90 dark:bg-slate-800/80 border-slate-300 dark:border-slate-600' 
+                            : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800 group'
+                        }`}
+                      >
+                        {editingCategoryIndex === idx ? (
+                          <div className="flex-1 flex gap-2">
+                            <input 
+                              autoFocus
+                              type="text"
+                              value={editingCategoryValue}
+                              onChange={(e) => setEditingCategoryValue(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && saveEditedCategory()}
+                              className="flex-1 bg-white dark:bg-slate-950 border rounded-lg px-3 py-1 text-sm outline-none text-slate-900 dark:text-slate-100"
+                              style={{ borderColor: activeTheme.primary }}
+                            />
                             <button 
-                              onClick={() => startEditingCategory(idx)}
-                              className="p-1.5 text-slate-400 hover:text-[#6366f1] hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                              onClick={saveEditedCategory}
+                              className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600"
                             >
-                              <Edit2 size={16} />
-                            </button>
-                            <button 
-                              onClick={() => deleteCategory(cat)}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                            >
-                              <Trash2 size={16} />
+                              <Save size={16} />
                             </button>
                           </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedCategory(cat)}
+                                className="text-left font-semibold text-sm hover:underline flex items-center gap-1.5 text-slate-800 dark:text-slate-100"
+                              >
+                                {cat}
+                              </button>
+                              {isSelected && (
+                                <span 
+                                  className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                                  style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.primary }}
+                                >
+                                  Active
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {!isSelected && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedCategory(cat)}
+                                  className="text-xs px-2 py-1 rounded-md text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+                                >
+                                  Select
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => startEditingCategory(idx)}
+                                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                                title="Rename"
+                              >
+                                <Edit2 size={15} />
+                              </button>
+                              <button 
+                                onClick={() => deleteCategory(cat)}
+                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                                title="Delete"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100">
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end">
                 <button 
                   onClick={() => setShowCategoryModal(false)}
-                  className="w-full py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm"
+                  className="px-6 py-2.5 text-white font-bold rounded-xl hover:opacity-90 transition-all text-sm"
+                  style={{ backgroundColor: activeTheme.primary }}
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Google Chrome Profile Style Theme & Color Palette Modal */}
+      <AnimatePresence>
+        {showThemeModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowThemeModal(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800"
+            >
+              <div 
+                className="p-6 text-white flex justify-between items-start transition-colors duration-200"
+                style={{ backgroundColor: activeTheme.primary }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
+                    <Palette size={22} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold tracking-tight">Theme & Color Palette</h3>
+                    <p className="text-white/80 text-xs mt-0.5">Customize your workspace appearance, styled like Google Chrome profile colors.</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowThemeModal(false)}
+                  className="p-1.5 hover:bg-white/20 rounded-xl transition-colors text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 flex-1 overflow-y-auto max-h-[70vh] space-y-6">
+                {/* Live Preview Card */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Live Preview</span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: activeTheme.badgeBg, color: activeTheme.primary }}>
+                      {activeTheme.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      className="px-4 py-2 rounded-xl text-white text-xs font-bold shadow-xs transition-colors"
+                      style={{ backgroundColor: activeTheme.primary }}
+                    >
+                      Log Task
+                    </button>
+                    <span className="text-lg font-bold" style={{ color: activeTheme.primary }}>
+                      2h 15m
+                    </span>
+                    <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full w-2/3" style={{ backgroundColor: activeTheme.primary }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Palette Grid - Chrome Profile 2-Tone Circular Swatches */}
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                      Chrome Profile Presets
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Click any palette to apply
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {THEME_PALETTES.map((palette) => {
+                      const isSelected = themeId === palette.id;
+                      return (
+                        <button
+                          key={palette.id}
+                          type="button"
+                          onClick={() => {
+                            setThemeId(palette.id);
+                          }}
+                          className={`group relative p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
+                            isSelected 
+                              ? 'bg-slate-100/90 dark:bg-slate-800 border-slate-400 dark:border-slate-600 shadow-sm' 
+                              : 'bg-white dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                          }`}
+                        >
+                          {/* Chrome-style 2-tone split circle */}
+                          <div 
+                            className="w-12 h-12 rounded-full shadow-md flex items-center justify-center transition-transform group-hover:scale-105 relative overflow-hidden border border-black/10 dark:border-white/10"
+                            style={{
+                              background: `linear-gradient(135deg, ${palette.circleSecondary} 50%, ${palette.primary} 50%)`
+                            }}
+                          >
+                            {isSelected && (
+                              <div className="w-5 h-5 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur-xs shadow-xs">
+                                <Check size={13} strokeWidth={3} />
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 text-center leading-tight truncate w-full">
+                            {palette.name.replace(' (Default)', '')}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Color Selector */}
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                      Custom Color Picker
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Choose any custom hex
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <div className="relative group shrink-0">
+                        <input
+                          type="color"
+                          value={themeCustomColor}
+                          onChange={(e) => {
+                            setThemeCustomColor(e.target.value);
+                            setThemeId('custom');
+                          }}
+                          className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                          title="Pick custom color"
+                        />
+                        <div 
+                          className="w-12 h-12 rounded-full shadow-md flex items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-600 transition-transform group-hover:scale-105"
+                          style={{ backgroundColor: themeCustomColor }}
+                        >
+                          {themeId === 'custom' && (
+                            <div className="w-5 h-5 rounded-full bg-black/45 text-white flex items-center justify-center backdrop-blur-xs">
+                              <Check size={13} strokeWidth={3} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-1 sm:w-36">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Hex Code</label>
+                        <input
+                          type="text"
+                          value={themeCustomColor}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setThemeCustomColor(val);
+                            if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+                              setThemeId('custom');
+                            }
+                          }}
+                          placeholder="#6366f1"
+                          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs font-mono font-bold text-slate-800 dark:text-slate-100 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex-1 flex justify-end gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setThemeId('custom');
+                        }}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                          themeId === 'custom'
+                            ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        Apply Custom
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setThemeId('indigo');
+                          setThemeCustomColor('#6366f1');
+                        }}
+                        className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-xl hover:bg-slate-200/50 transition-colors"
+                      >
+                        Reset Default
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                <button 
+                  type="button"
+                  onClick={() => setShowThemeModal(false)}
+                  className="px-6 py-2.5 rounded-xl font-bold text-sm text-white shadow-xs transition-colors"
+                  style={{ backgroundColor: activeTheme.primary }}
                 >
                   Done
                 </button>

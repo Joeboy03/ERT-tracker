@@ -27,16 +27,39 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      return data.keys().hasOnly(['categories', 'dailyGoal', 'baseRate', 'premiumRate', 'showEarnings', 'weeklyLimit', 'weeklyWindowType', 'limitEnforcement'])
+      return data.keys().hasOnly([
+          'categories', 
+          'selectedCategory', 
+          'dailyGoal', 
+          'baseRate', 
+          'premiumRate', 
+          'showEarnings', 
+          'weeklyLimit', 
+          'weeklyWindowType', 
+          'limitEnforcement',
+          'soundEnabled',
+          'soundVolume',
+          'warningThresholdHours',
+          'goalChimeEnabled',
+          'themeId',
+          'themeCustomColor'
+        ])
         && (data.get('categories', []) is list)
         && (data.get('categories', []).size() <= 50)
+        && (data.get('selectedCategory', 'General') is string)
         && (data.get('dailyGoal', 0) is number)
         && (data.get('baseRate', 0) is number)
         && (data.get('premiumRate', 0) is number)
         && (data.get('showEarnings', true) is bool)
         && (data.get('weeklyLimit', 20) is number)
         && (data.get('weeklyWindowType', 'calendar') is string)
-        && (data.get('limitEnforcement', 'confirm') is string);
+        && (data.get('limitEnforcement', 'confirm') is string)
+        && (data.get('soundEnabled', true) is bool)
+        && (data.get('soundVolume', 0.7) is number)
+        && (data.get('warningThresholdHours', 18.5) is number)
+        && (data.get('goalChimeEnabled', true) is bool)
+        && (data.get('themeId', 'indigo') is string)
+        && (data.get('themeCustomColor', '') is string);
     }
 
     function isValidDailyLog(data, userId) {

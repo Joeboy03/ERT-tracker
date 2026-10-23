@@ -10,6 +10,10 @@
           "items": { "type": "string" },
           "description": "User's custom categories."
         },
+        "selectedCategory": {
+          "type": "string",
+          "description": "Currently selected category / task type."
+        },
         "dailyGoal": {
           "type": "number",
           "description": "Daily goal in hours."
@@ -25,6 +29,42 @@
         "showEarnings": {
           "type": "boolean",
           "description": "Whether to show earnings."
+        },
+        "weeklyLimit": {
+          "type": "number",
+          "description": "Weekly limit in hours."
+        },
+        "weeklyWindowType": {
+          "type": "string",
+          "description": "Window type (calendar or rolling)."
+        },
+        "limitEnforcement": {
+          "type": "string",
+          "description": "Enforcement mode (confirm, block, warn)."
+        },
+        "soundEnabled": {
+          "type": "boolean",
+          "description": "Whether sound alerts are enabled."
+        },
+        "soundVolume": {
+          "type": "number",
+          "description": "Volume of audio alerts between 0 and 1."
+        },
+        "warningThresholdHours": {
+          "type": "number",
+          "description": "Warning threshold hours for approaching weekly cap."
+        },
+        "goalChimeEnabled": {
+          "type": "boolean",
+          "description": "Whether chime plays on daily target completion."
+        },
+        "themeId": {
+          "type": "string",
+          "description": "Selected theme profile ID."
+        },
+        "themeCustomColor": {
+          "type": "string",
+          "description": "Optional custom primary color hex code."
         }
       }
     },
