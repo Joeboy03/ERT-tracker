@@ -92,6 +92,25 @@ const formatDateToKey = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Adaptive ERT display formatter:
+// - in minutes when in minutes (< 60m, e.g. "45m")
+// - in hours when in hour (exact hours, e.g. "1h", "2h")
+// - in hours and minutes when in hr and minutes (e.g. "1h 30m")
+const formatErt = (totalMins: number): string => {
+  if (!totalMins || isNaN(totalMins) || totalMins <= 0) return '0m';
+  const rounded = Math.round(totalMins);
+  const h = Math.floor(rounded / 60);
+  const m = rounded % 60;
+  
+  if (h === 0) {
+    return `${m}m`;
+  }
+  if (m === 0) {
+    return `${h}h`;
+  }
+  return `${h}h ${m}m`;
+};
+
 export default function App() {
   const [logs, setLogs] = useState<Record<string, Task[]>>(() => {
     const saved = localStorage.getItem('tryrating_all_logs');
@@ -876,12 +895,10 @@ export default function App() {
     let totalErt = 0;
     const taskLines = tasksToCopy.map((t, i) => {
       totalErt += t.ert;
-      return `Task ${i + 1}: ${t.ert}m (Cumulative: ${totalErt}m)`;
+      return `Task ${i + 1}: ${formatErt(t.ert)} (Cumulative: ${formatErt(totalErt)})`;
     });
 
-    const h = Math.floor(totalErt / 60);
-    const m = Math.round(totalErt % 60);
-    const timeDisplay = h > 0 ? `${h}h ${m}m` : `${totalErt}m`;
+    const timeDisplay = formatErt(totalErt);
 
     const logText = [
       `TryRating Time Tracker Log - ${formattedDate}`,
@@ -1095,12 +1112,9 @@ export default function App() {
     const startStr = stats.startDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     const endStr = stats.endDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     
-    const h = Math.floor(hoursTotal);
-    const m = Math.round((hoursTotal % 1) * 60);
-    
     let report = `Period: ${startStr} - ${endStr}\n`;
     report += `------------------------------\n`;
-    report += `Total ERT: ${h}h ${m}m (${hoursTotal.toFixed(2)} hours)\n`;
+    report += `Total ERT: ${formatErt(totalMinutes)} (${hoursTotal.toFixed(2)} hours)\n`;
     if (showEarnings) {
       report += `Estimated Earnings: ₦${stats.earnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}\n`;
     }
@@ -1123,9 +1137,7 @@ export default function App() {
       });
 
       if (totalMins > 0) {
-        const dh = Math.floor(totalMins / 60);
-        const dm = Math.round(totalMins % 60);
-        report += `${d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${dh}h ${dm}m\n`;
+        report += `${d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}: ${formatErt(totalMins)}\n`;
       }
       d.setDate(d.getDate() + 1);
     }
@@ -1138,9 +1150,7 @@ export default function App() {
       sortedCategories.forEach(cat => {
         const catMins = categoryTotals[cat];
         if (catMins > 0) {
-          const ch = Math.floor(catMins / 60);
-          const cm = Math.round(catMins % 60);
-          report += `${cat}: ${ch}h ${cm}m\n`;
+          report += `${cat}: ${formatErt(catMins)}\n`;
         }
       });
     }
@@ -1590,11 +1600,11 @@ export default function App() {
                         <Target size={13} />
                       </button>
                     </div>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-xl sm:text-2xl font-bold text-[#6366f1] dark:text-[#818cf8]">
-                        {totalMinutes}m
+                    <div className="flex items-baseline gap-1.5" title={`${totalMinutes} minutes total logged today`}>
+                      <span className="text-xl sm:text-2xl font-bold tracking-tight text-[#6366f1] dark:text-[#818cf8]">
+                        {formatErt(totalMinutes)}
                       </span>
-                      <span className="text-xs text-slate-400 dark:text-slate-500">
+                      <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
                         / {dailyGoal}h
                       </span>
                     </div>
@@ -1664,17 +1674,17 @@ export default function App() {
                         <Settings size={13} />
                       </button>
                     </div>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className={`text-xl sm:text-2xl font-bold ${
+                    <div className="flex items-baseline gap-1.5" title={`${weeklyStats.totalMinutes} minutes total in 7-day window`}>
+                      <span className={`text-xl sm:text-2xl font-bold tracking-tight ${
                         weeklyStats.isCapReached 
                           ? 'text-red-600 dark:text-red-400' 
                           : weeklyStats.isNearCap 
                           ? 'text-amber-600 dark:text-amber-400' 
                           : 'text-slate-900 dark:text-slate-100'
                       }`}>
-                        {Math.floor(weeklyStats.totalHours)}h {Math.round((weeklyStats.totalHours % 1) * 60)}m
+                        {formatErt(weeklyStats.totalMinutes)}
                       </span>
-                      <span className="text-xs text-slate-400 dark:text-slate-500">
+                      <span className="text-xs font-medium text-slate-400 dark:text-slate-500">
                         / {weeklyLimit}h
                       </span>
                     </div>
@@ -1687,7 +1697,7 @@ export default function App() {
                           ? 'text-amber-600 dark:text-amber-400' 
                           : 'text-emerald-600 dark:text-emerald-400'
                       }>
-                        {weeklyStats.isCapReached ? '0h (Capped)' : `${Math.floor(weeklyStats.remainingHours)}h ${Math.round((weeklyStats.remainingHours % 1) * 60)}m left`}
+                        {weeklyStats.isCapReached ? '0h (Capped)' : `${formatErt(weeklyStats.remainingMinutes)} left`}
                       </span>
                     </div>
                   </div>
@@ -1882,10 +1892,10 @@ export default function App() {
                                   </span>
                                 </td>
                                 <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-800 dark:text-slate-100 font-semibold">
-                                  {Math.floor(task.ert / 60)}h {Math.round(task.ert % 60)}m
+                                  {formatErt(task.ert)}
                                 </td>
                                 <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-800 dark:text-slate-100 font-medium opacity-70">
-                                  {Math.floor(runningTotal / 60)}h {Math.round(runningTotal % 60)}m
+                                  {formatErt(runningTotal)}
                                 </td>
                                 <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-right">
                                   <button 
@@ -1958,9 +1968,7 @@ export default function App() {
                       <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
                         {(() => {
                           const totalMins = (logs[selectedHistoryDate] || []).reduce((acc, t) => acc + t.ert, 0);
-                          const h = Math.floor(totalMins / 60);
-                          const m = Math.round(totalMins % 60);
-                          return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                          return formatErt(totalMins);
                         })()}
                       </div>
                       <div className="text-[10px] text-slate-400 italic mt-0.5">Daily total</div>
@@ -2017,7 +2025,7 @@ export default function App() {
                               </span>
                             </td>
                             <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-slate-800 dark:text-slate-100 font-semibold">
-                              {Math.floor(task.ert / 60)}h {Math.round(task.ert % 60)}m
+                              {formatErt(task.ert)}
                             </td>
                             <td className="px-4 sm:px-6 md:px-8 py-3 sm:py-4 text-right">
                               <button 
@@ -2193,7 +2201,7 @@ export default function App() {
                             </div>
                             <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
                               <span className="flex items-center gap-1"><CheckCircle2 size={12} /> {dayTasks.length} tasks</span>
-                              <span className="flex items-center gap-1"><Clock size={12} /> {stats.hours}h {stats.mins}m logged</span>
+                              <span className="flex items-center gap-1"><Clock size={12} /> {formatErt(stats.totalMinutes)} logged</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
